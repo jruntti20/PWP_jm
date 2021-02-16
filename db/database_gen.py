@@ -33,11 +33,13 @@ class Phase(db.Model):
     project_id = db.Column(db.Integer, nullable=False, db.ForegnKey("project.id"))
 
     project = db.relationships("Project", back_populates="phases")
+    task = db.relationships("Tasks", back_populates="phase")
+    costs = db.relationships("Costs", back_populates="phase")
 
 class Costs(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     project_id = db.Column(db.Integer, nullable=False, db.ForegnKey("project.id"))
-    phase_id = db.Column(db.Integer, nullable=False)
+    phase_id = db.Column(db.Integer, nullable=False, db.ForegnKey("phase.id"))
     name = db.Column(db.String(64), nullable=False)
     description = db.Column(db.String(64), nullable=False)
     hourly_price = db.Column(db.Float, nullable=False)
@@ -45,6 +47,7 @@ class Costs(db.Model):
     total_costs = db.Column(db.Float, nullable=False)
 
     project = db.relationships("Project", back_populates="costs")
+    phase = db.relationships("Phase", back_populates="costs")
 
 class Members(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -53,13 +56,14 @@ class Members(db.Model):
 
     managed_project = db.relationship("Project", back_populates="project_manager")
     membership = db.relationships("Teams", back_populates="team_members")
+    hours = db.relationships("Hours", back_populates="employee")
 
 
 class Tasks(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, nullable=False, db.ForegnKey("project.id")
+    project_id = db.Column(db.Integer, nullable=False, db.ForegnKey("project.id"))
+    phase_id = db.Column(db.Integer, nullable=False, db.ForegnKey("phase.id"))
     name = db.Column(db.String(64), nullable=False)
-    phase = db.Column(db.String(64), nullable=False)
     total_hours = db.Column(db.Float, nullable=False)
     start = db.Column(db.DateTime, nullable=False)
     end = db.Column(db.DateTime, nullable=False)
@@ -67,6 +71,8 @@ class Tasks(db.Model):
 
     project = db.relationships("Project", back_populates="tasks")
     team = db.relationships("Teams", back_populates="team_tasks")
+    phase = db.relationships("Phase", back_populates="task")
+    hours = db.relationships("Hours", back_populates="task")
 
 
 class Teams(db.Model):
@@ -78,12 +84,14 @@ class Teams(db.Model):
 
 class Hours(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    task_id = db.Column(db.Integer, nullable=False)
+    task_id = db.Column(db.Integer, nullable=False, db.ForegnKey("tasks.id"))
     project_id = db.Column(db.Integer, nullable=False, db.ForeignKey="project.id")
     employee_id = db.Column(db.Integer, nullable=False, db.ForegnKey("members.id"))
     date = db.Column(db.DateTime, nullable=False)
     time = db.Column(db.Float, nullable=False)
 
-    project = db.relationsships("Project", back_populates="hours")
+    project = db.relationships("Project", back_populates="hours")
+    task = db.relationships("Tasks", back_populates="hours")
+    employee = db.relationships("Members", back_populates="hours")
 
 db.create_all()
