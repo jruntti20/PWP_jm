@@ -74,6 +74,7 @@ def _get_hour():
     )
     return hour
 
+#test adds new member to database
 def test_create_member(db_handle):
     member = _get_member()
     db_handle.session.add(member)
@@ -81,6 +82,7 @@ def test_create_member(db_handle):
     assert Members.query.count() == 1
 
 def test_create_project(db_handle):
+    #test adds new project and new member and add this member to test the foreign key project_manager
     project = _get_project()
     member = _get_member()
     project.project_manager = member
@@ -92,6 +94,8 @@ def test_create_project(db_handle):
     db_member = Members.query.first()
     assert db_project.project_manager == db_member
     assert db_project in db_member.managed_project
+
+    #test adds a new member and changes the project_manager to be this one
     member2 = _get_member()
     project.project_manager = member2
     db_handle.session.add(project)
@@ -102,34 +106,41 @@ def test_create_project(db_handle):
     db_member2 = Members.query.all()[-1]
     assert db_project.project_manager == db_member2
     assert db_project in db_member2.managed_project
+
+    #test removes a member from the database
     db_handle.session.delete(db_member)
     db_handle.session.commit()
     assert Members.query.count() == 1
 
+#test adds new phase to database
 def test_create_phase(db_handle):
     phase = _get_phase()
     db_handle.session.add(phase)
     db_handle.session.commit()
     assert Phase.query.count() == 1
 
+#test adds new cost to database
 def test_create_cost(db_handle):
     cost = _get_cost()
     db_handle.session.add(cost)
     db_handle.session.commit()
     assert Costs.query.count() == 1
 
+#test adds new task to database
 def test_create_task(db_handle):
     task = _get_task()
     db_handle.session.add(task)
     db_handle.session.commit()
     assert Tasks.query.count() == 1
 
+#test adds new team to database
 def test_create_team(db_handle):
     team = _get_team()
     db_handle.session.add(team)
     db_handle.session.commit()
     assert Teams.query.count() == 1
 
+#test adds new hour to database
 def test_create_hour(db_handle):
     hour = _get_hour()
     db_handle.session.add(hour)
