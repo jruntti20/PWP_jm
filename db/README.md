@@ -3,14 +3,10 @@
 **UPDATED:** 19.2.2021
 * **Group** Runtti, Ahonen, Vuorinen
 ## External libraries
-Flask
-
+Flask<br>
 SQLAlchemy
-
 os
-
 pytest
-
 tempfile
 
 ## Database
