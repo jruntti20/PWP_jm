@@ -13,8 +13,8 @@ tempfile<br>
 SQLite
 
 ## Setting up database framework
-*https://www.sqlalchemy.org/
-*https://flask.palletsprojects.com/en/1.1.x/
+* https://www.sqlalchemy.org/ <br>
+* https://flask.palletsprojects.com/en/1.1.x/
 
 ## Setting up and populating database
 *Running the database_gen.py sets up an empty database named "project_database"
