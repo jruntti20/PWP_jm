@@ -8,7 +8,7 @@ db = SQLAlchemy(app)
 
 class Project(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(64), nullable=False)
+    name = db.Column(db.String(64), nullable=False, unique=True)
     start = db.Column(db.DateTime, nullable=True)
     end = db.Column(db.DateTime, nullable=True)
     budget = db.Column(db.Float, nullable=True)
@@ -51,13 +51,12 @@ class Costs(db.Model):
 
 class Members(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(64), nullable=False)
+    name = db.Column(db.String(64), nullable=False, unique=True)
     hourly_cost = db.Column(db.Float, nullable=True)
 
     managed_project = db.relationship("Project", back_populates="project_manager")
     membership = db.relationship("Teams", back_populates="team_members")
     hours = db.relationship("Hours", back_populates="employee")
-
 
 class Tasks(db.Model):
     id = db.Column(db.Integer, primary_key=True)
