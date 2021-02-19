@@ -4,10 +4,10 @@
 * **Group** Runtti, Ahonen, Vuorinen
 ## External libraries
 Flask<br>
-SQLAlchemy
-os
-pytest
-tempfile
+SQLAlchemy<br>
+os<br>
+pytest<br>
+tempfile<br>
 
 ## Database
 SQLite
