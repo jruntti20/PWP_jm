@@ -4,9 +4,13 @@
 * **Group** Runtti, Ahonen, Vuorinen
 ## External libraries
 Flask
+
 SQLAlchemy
+
 os
+
 pytest
+
 tempfile
 
 ## Database
