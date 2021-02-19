@@ -147,8 +147,6 @@ def test_project_constraints(db_handle):
                       total_hours=-1,
                       total_costs=-1,
                       status="asdasd")
-    project = Project(name="p1",
-                      status="not started")
     db_handle.session.add(project)
     with pytest.raises(IntegrityError):
         db_handle.session.commit()
@@ -177,6 +175,7 @@ def test_create_project(db_handle):
 
     #test adds a new member and changes the project_manager to be this one
     member2 = _get_member()
+    member2.name = "uusi ukko"
     project.project_manager = member2
     db_handle.session.add(project)
     db_handle.session.commit()

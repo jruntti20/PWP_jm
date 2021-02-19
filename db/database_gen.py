@@ -20,7 +20,6 @@ class Project(db.Model):
     status = db.Column(db.String(16),
                        db.CheckConstraint("status == 'not started' OR status == 'started' OR status == 'finished'"),
                        default="not started", nullable=False)
-
     tasks = db.relationship("Tasks", back_populates="project")
     phases = db.relationship("Phase", back_populates="project")
     project_manager = db.relationship("Members", back_populates="managed_project")
@@ -35,7 +34,7 @@ class Phase(db.Model):
     status = db.Column(db.String(16),
                        db.CheckConstraint("status == 'not started' OR status == 'started' OR status == 'finished'"),
                        default="not started", nullable=False)
-    project_id = db.Column(db.Integer, db.ForeignKey("project.id"))
+    project_id = db.Column(db.Integer, db.ForeignKey("project.id", ondelete="SET NULL", onupdate="CASCADE"))
 
     project = db.relationship("Project", back_populates="phases")
     task = db.relationship("Tasks", back_populates="phase")
@@ -43,8 +42,8 @@ class Phase(db.Model):
 
 class Costs(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey("project.id"))
-    phase_id = db.Column(db.Integer, db.ForeignKey("phase.id"))
+    project_id = db.Column(db.Integer, db.ForeignKey("project.id", ondelete="SET NULL", onupdate="CASCADE"))
+    phase_id = db.Column(db.Integer, db.ForeignKey("phase.id", ondelete="SET NULL", onupdate="CASCADE"))
     name = db.Column(db.String(64), nullable=False)
     description = db.Column(db.String(64), nullable=True)
     hourly_price = db.Column(db.Float, db.CheckConstraint("hourly_price >= 0"), nullable=True)
@@ -66,8 +65,8 @@ class Members(db.Model):
 
 class Tasks(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey("project.id"))
-    phase_id = db.Column(db.Integer, db.ForeignKey("phase.id"))
+    project_id = db.Column(db.Integer, db.ForeignKey("project.id", ondelete="SET NULL", onupdate="CASCADE"))
+    phase_id = db.Column(db.Integer, db.ForeignKey("phase.id", ondelete="SET NULL", onupdate="CASCADE"))
     name = db.Column(db.String(64), nullable=False, unique=True)
     total_hours = db.Column(db.Float, db.CheckConstraint("total_hours >= 0"), nullable=True)
     total_cost = db.Column(db.Float, db.CheckConstraint("total_cost >= 0"), nullable=True)
@@ -86,17 +85,17 @@ class Tasks(db.Model):
 class Teams(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
-    task_id = db.Column(db.Integer, db.ForeignKey("tasks.id"))
-    member_id = db.Column(db.Integer, db.ForeignKey("members.id"))
+    task_id = db.Column(db.Integer, db.ForeignKey("tasks.id", ondelete="SET NULL", onupdate="CASCADE"))
+    member_id = db.Column(db.Integer, db.ForeignKey("members.id", ondelete="SET NULL", onupdate="CASCADE"))
 
     team_members = db.relationship("Members", back_populates="membership")
     team_tasks = db.relationship("Tasks", back_populates="team")
 
 class Hours(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    task_id = db.Column(db.Integer, db.ForeignKey("tasks.id"))
-    project_id = db.Column(db.Integer, db.ForeignKey("project.id"))
-    employee_id = db.Column(db.Integer, db.ForeignKey("members.id"))
+    task_id = db.Column(db.Integer, db.ForeignKey("tasks.id", ondelete="SET NULL", onupdate="CASCADE"))
+    project_id = db.Column(db.Integer, db.ForeignKey("project.id", ondelete="SET NULL", onupdate="CASCADE"))
+    employee_id = db.Column(db.Integer, db.ForeignKey("members.id", ondelete="SET NULL", onupdate="CASCADE"))
     date = db.Column(db.DateTime, default=datetime.datetime.today().date(), nullable=True)
     time = db.Column(db.Float, db.CheckConstraint("time >= 0") , nullable=True)
 
