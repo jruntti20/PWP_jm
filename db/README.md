@@ -13,11 +13,12 @@ tempfile<br>
 SQLite
 
 ## Setting up database framework
-* https://www.sqlalchemy.org/ <br>
-* https://flask.palletsprojects.com/en/1.1.x/
+* [SQLAlchemy](https://www.sqlalchemy.org/) <br>
+* [Fask](https://flask.palletsprojects.com/en/1.1.x/)
 
 ## Setting up and populating database
 * Running the [database_gen.py](https://github.com/jruntti20/PWP_jm/blob/master/db/database_gen.py) sets up an empty database named "project_database"
+* Database can be populated with SQLAlchemy or any other framework for SQLite
 
 ## Testing database
 * Running the [database_test.py](https://github.com/jruntti20/PWP_jm/blob/master/db/database_test.py) tests database_gen.py 
