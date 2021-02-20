@@ -151,6 +151,46 @@ def test_project_constraints(db_handle):
     with pytest.raises(IntegrityError):
         db_handle.session.commit()
 
+def test_all_member_tests(db_handle):
+    #test adds new member to database
+    member = _get_member()
+    db_handle.session.add(member)
+    db_handle.session.commit()
+    assert Members.query.count() == 1
+    #this works
+
+    #test retrieves member from database and compares it to the added one
+    new_member = Members.query.first()
+    assert new_member == member
+    #this works
+
+    #test modifies an existing member in the database
+    member.name = "uusi ukko"
+    db_handle.session.add(member)
+    db_handle.session.commit()
+    assert Members.query.first().name == "uusi ukko"
+    #this works
+
+    #test removes a member from the database
+    db_handle.session.delete(member)
+    assert Members.query.count() == 0
+    #this works
+
+    #tests for unique violations, adding 2 members with same names
+    member = _get_member()
+    member2 = _get_member()
+    db_handle.session.add(member)
+    db_handle.session.add(member2)
+    with pytest.raises(IntegrityError):
+        db_handle.session.commit()
+    #this works
+
+#tests all the constraints in the Members table, name not null and hourly cost >= 0
+def test_member_constraints(db_handle):
+    member = Members(hourly_cost=-1)
+    db_handle.session.add(member)
+    with pytest.raises(IntegrityError):
+        db_handle.session.commit()
 
 #test adds new member to database
 def test_create_member(db_handle):
@@ -197,6 +237,74 @@ def test_create_phase(db_handle):
     db_handle.session.add(phase)
     db_handle.session.commit()
     assert Phase.query.count() == 1
+
+def test_all_costs_tests(db_handle):
+    #test adds new cost to database
+    cost = _get_cost()
+    db_handle.session.add(cost)
+    db_handle.session.commit()
+    assert Costs.query.count() == 1
+    #this works
+
+    #test retrieves cost from database and compares it to the added one
+    new_cost = Costs.query.first()
+    assert new_cost == cost
+    #this works
+
+    #test modifies an existing cost in the database
+    cost.name = "uusi kustannus"
+    db_handle.session.add(cost)
+    db_handle.session.commit()
+    assert Costs.query.first().name == "uusi kustannus"
+    #this works
+
+    #test removes a cost from the database
+    db_handle.session.delete(cost)
+    assert Project.query.count() == 0
+    #this works
+
+    #tests onDelete, by deleting the phase and project from database
+    phase = _get_phase()
+    project = _get_project()
+    cost = _get_cost()
+    cost.phase = phase
+    cost.project = project
+    db_handle.session.add(cost)
+    db_handle.session.commit()
+    db_handle.session.delete(phase)
+    assert Costs.query.first().phase == None
+    db_handle.session.delete(project)
+    assert Costs.query.first().project == None
+    #this works
+
+    #tests onModify, by changing the phase and project
+    phase1 = _get_phase()
+    phase2 = _get_phase()
+    phase2.name = "phase2"
+    project1 = _get_project()
+    project2 = _get_project(name="toinen projekti")
+    cost.phase = phase1
+    cost.project = project1
+    db_handle.session.add(cost)
+    db_handle.session.commit()
+    assert Costs.query.first().phase.name == "testi phase"
+    assert Costs.query.first().project.name == "projekti"
+    cost.phase = phase2
+    cost.project = project2
+    db_handle.session.add(cost)
+    db_handle.session.commit()
+    assert Project.query.filter_by(name="toinen projekti").first().costs[0].name == "testi cost"
+    assert Phase.query.filter_by(name="phase2").first().costs[0].name == "testi cost"
+    #this works
+
+#tests all the constraints in the Costs table, name not null and hourly_price, quantity and total_costs >= 0
+def test_cost_constraints(db_handle):
+    cost = Costs(hourly_price=-1,
+                 quantity=-1,
+                 total_costs=-1)
+    db_handle.session.add(cost)
+    with pytest.raises(IntegrityError):
+        db_handle.session.commit()
 
 #test adds new cost to database
 def test_create_cost(db_handle):
