@@ -48,10 +48,10 @@ def _get_member():
     )
     return member
 
-def _get_phase():
+def _get_phase(name="testi phase", status="not started"):
     phase = Phase(
-        name="testi phase",
-        status="not started"
+        name=name,
+        status=status
     )
     return phase
 
@@ -81,7 +81,10 @@ def _get_hour():
 def test_all_project_tests(db_handle):
     #test adds new project to database
     project = _get_project("p1","not started")
+    phase = _get_phase()
+    phase.project = project
     db_handle.session.add(project)
+    db_handle.session.add(phase)
     db_handle.session.commit()
     assert Project.query.count() == 1
     #this works
@@ -190,6 +193,29 @@ def test_create_project(db_handle):
     db_handle.session.delete(db_member)
     db_handle.session.commit()
     assert Members.query.count() == 1
+
+def test_phase_constraints(db_handle):
+    
+    project = _get_project()
+    phase = _get_phase()
+    phase.project = project
+    phase.status = "asdasd"
+    db_handle.session.add(phase)
+
+    with pytest.raises(IntegrityError):
+
+        db_handle.session.commit()
+        print(Phase.query.first().name)
+
+    db_handle.session.rollback()
+    phase.status = "not started"
+    db_handle.session.add(phase)
+    db_handle.session.commit()
+
+    print(Phase.query.first().name)
+    print(Phase.query.first().status)
+
+    assert Phase.query.count() == 1
 
 #test adds new phase to database
 def test_create_phase(db_handle):

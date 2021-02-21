@@ -20,16 +20,18 @@ class Project(db.Model):
     status = db.Column(db.String(16),
                        db.CheckConstraint("status == 'not started' OR status == 'started' OR status == 'finished'"),
                        default="not started", nullable=False)
-    tasks = db.relationship("Tasks", back_populates="project")
+    tasks = db.relationship("Tasks", cascade="all, delete-orphan", back_populates="project")
+    #phases = db.relationship("Phase", cascade="all, delete-orphan", back_populates="project")
     phases = db.relationship("Phase", back_populates="project")
     project_manager = db.relationship("Members", back_populates="managed_project")
-    costs = db.relationship("Costs", back_populates="project")
-    hours = db.relationship("Hours", back_populates="project")
+    costs = db.relationship("Costs", cascade="all, delete-orphan", back_populates="project")
+    hours = db.relationship("Hours", cascade="all, delete-orphan", back_populates="project")
 
 
 class Phase(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(64), nullable=False)
+    name = db.Column(db.String(64), default="hankesuunnittelu", nullable=False)
+ 
     deadline = db.Column(db.DateTime, nullable=True)
     status = db.Column(db.String(16),
                        db.CheckConstraint("status == 'not started' OR status == 'started' OR status == 'finished'"),
@@ -58,6 +60,7 @@ class Members(db.Model):
     name = db.Column(db.String(64), nullable=False, unique=True)
     hourly_cost = db.Column(db.Float, db.CheckConstraint("hourly_cost >= 0"), nullable=True)
 
+    # managed_project = db.relationship("Project", cascade="delete-orphan", back_populates="project_manager")
     managed_project = db.relationship("Project", back_populates="project_manager")
     membership = db.relationship("Teams", back_populates="team_members")
     hours = db.relationship("Hours", back_populates="employee")
