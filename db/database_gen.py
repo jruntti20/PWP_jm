@@ -50,8 +50,8 @@ class Costs(db.Model):
     description = db.Column(db.String(64), nullable=True)
     hourly_price = db.Column(db.Float, db.CheckConstraint("hourly_price >= 0"), nullable=True)
     quantity = db.Column(db.Float, db.CheckConstraint("quantity >= 0"), nullable=True)
-    total_costs = db.Column(db.Float, db.CheckConstraint("total_costs >= 0"), nullable=True)
-
+    total_costs = db.column_property(hourly_price * quantity)
+    #total_costs = db.Column(db.Float, db.CheckConstraint("total_costs >= 0"), nullable=True)
     project = db.relationship("Project", back_populates="costs")
     phase = db.relationship("Phase", back_populates="costs")
 
