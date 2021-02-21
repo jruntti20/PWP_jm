@@ -129,7 +129,7 @@ def test_all_project_tests(db_handle):
     assert Members.query.filter_by(name="uusi manageri").first().managed_project[0].name == "projekti1"
     #this works
 
-    #tests for foreign key violations, adding 2 projects with same names
+    #tests for unique violations, adding 2 projects with same names
     project2 = _get_project()
     project2.name = "projekti1"
     db_handle.session.add(project2)
