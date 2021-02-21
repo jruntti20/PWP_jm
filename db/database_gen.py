@@ -20,12 +20,11 @@ class Project(db.Model):
     status = db.Column(db.String(16),
                        db.CheckConstraint("status == 'not started' OR status == 'started' OR status == 'finished'"),
                        default="not started", nullable=False)
-    tasks = db.relationship("Tasks", cascade="all, delete-orphan", back_populates="project")
-    #phases = db.relationship("Phase", cascade="all, delete-orphan", back_populates="project")
+    tasks = db.relationship("Tasks", back_populates="project")
     phases = db.relationship("Phase", back_populates="project")
     project_manager = db.relationship("Members", back_populates="managed_project")
-    costs = db.relationship("Costs", cascade="all, delete-orphan", back_populates="project")
-    hours = db.relationship("Hours", cascade="all, delete-orphan", back_populates="project")
+    costs = db.relationship("Costs", back_populates="project")
+    hours = db.relationship("Hours", back_populates="project")
 
 
 class Phase(db.Model):

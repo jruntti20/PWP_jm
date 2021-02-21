@@ -61,10 +61,10 @@ def _get_cost():
     )
     return cost
 
-def _get_task():
+def _get_task(name="task", status="not started"):
     task = Tasks(
-        name="task",
-        status="not started"
+        name=name,
+        status=status
     )
     return task
 
@@ -249,13 +249,59 @@ def test_phase_constraints(db_handle):
     print(Phase.query.first().status)
 
     assert Phase.query.count() == 1
+    # this works
 
-#test adds new phase to database
-def test_create_phase(db_handle):
+def test_all_phase_tests(db_handle):
+#tests all phase tests
+
+    #creates a phase and adds it into a database
+    project = _get_project()
     phase = _get_phase()
+    
+    phase.project = project
+    phase.deadline = datetime.date(2020, 2, 28)
+    task1 = _get_task("testi_task1")
+    task2 = _get_task("testi_task2", "started")
+
+    task1.phase = phase
+    task2.phase = phase
+
+    # check the count of added project phases
+    db_handle.session.add(project)
+    db_handle.session.add(task1)
+    db_handle.session.add(task2)
     db_handle.session.add(phase)
     db_handle.session.commit()
     assert Phase.query.count() == 1
+    # this works
+
+    #creates tasks with different names, prints out attributes
+    #and checks the count
+    print(Tasks.query.first().phase.name)
+    print(Tasks.query.all()[0].name)
+    print(Tasks.query.all()[1].name)
+    assert Tasks.query.count() == 2
+    # this works
+
+    # testing onDelete
+    db_handle.session.delete(phase)
+    db_handle.session.commit()
+    print(Tasks.query.first().phase)
+    assert Tasks.query.first().phase == None
+    #this works
+
+    # testing onModify
+    phase2 = _get_phase()
+    phase2.project = project
+    task1.phase = phase2
+    db_handle.session.add(phase2)
+    db_handle.session.commit()
+    print("Added phase again: ", Tasks.query.first().phase.name)
+    phase2.status = "finished"
+    print(Tasks.query.first().phase.status)
+    assert Tasks.query.first().phase.status == "finished"
+    #this works
+    
 
 def test_all_costs_tests(db_handle):
     #test adds new cost to database
@@ -291,6 +337,7 @@ def test_all_costs_tests(db_handle):
     db_handle.session.add(cost)
     db_handle.session.commit()
     db_handle.session.delete(phase)
+    db_handle.session.commit()
     assert Costs.query.first().phase == None
     db_handle.session.delete(project)
     assert Costs.query.first().project == None
@@ -457,9 +504,55 @@ def test_all_team(db_handle):
     assert Tasks.query.filter_by(name="task2").first().team[0].id == 1
     #this works
 
-#test adds new hour to database
-def test_create_hour(db_handle):
+def test_all_hour_tests(db_handle):
+    #test all hour tests
+    project = _get_project()
     hour = _get_hour()
+    hour.project = project
+    task1 = _get_task()
+    empl = _get_member()
+    hour.task = task1
+    hour.employee = empl
     db_handle.session.add(hour)
     db_handle.session.commit()
     assert Hours.query.count() == 1
+    #this works
+
+    db_handle.session.add(project)
+    db_handle.session.add(task1)
+    db_handle.session.add(hour)
+    db_handle.session.commit()
+    
+    hour.date = datetime.date(2021, 3, 15)
+    hour.time = 12
+    hour.employee = empl
+    
+    print(Hours.query.first().employee.name)
+    assert Hours.query.first().employee.name == "testiukko"
+    print(Hours.query.first().time)
+    print(Hours.query.first().date)
+    #this works
+    
+    # testing onDelete
+    db_handle.session.delete(hour)
+    db_handle.session.commit()
+    print(Members.query.first().hours)
+    print(Project.query.first().hours)
+    assert Members.query.first().hours == []
+    assert Project.query.first().hours == []
+    #this works
+
+    # testing onModify
+    hour = _get_hour()
+    task2 = _get_task("testi2")
+    hour.project = project
+    hour.task = task1
+    print("Original: ", Hours.query.first().task.name)
+    assert Hours.query.first().task.name == "task"
+    hour.task = task2
+    hour.employee = empl
+    print("onModify: ", Hours.query.first().task.name)
+    assert Hours.query.first().task.name == "testi2"
+    db_handle.session.add(hour)
+    db_handle.session.commit()
+    #this works
