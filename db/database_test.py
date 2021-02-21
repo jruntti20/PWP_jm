@@ -298,19 +298,138 @@ def test_cost_constraints(db_handle):
     with pytest.raises(IntegrityError):
         db_handle.session.commit()
 
-#test adds new task to database
-def test_create_task(db_handle):
+
+def test_all_task(db_handle):
+    # test adds new task to database
     task = _get_task()
     db_handle.session.add(task)
     db_handle.session.commit()
     assert Tasks.query.count() == 1
 
-#test adds new team to database
-def test_create_team(db_handle):
+    # test retrieves task from database and compares it to the added one
+    new_task = Tasks.query.first()
+    assert new_task == task
+    # this works
+
+    #test modifies an existing task in the database
+    task.name = "uusi taski"
+    db_handle.session.add(task)
+    db_handle.session.commit()
+    assert Tasks.query.first().name == "uusi taski"
+    #this works
+
+    #test removes a task from the database
+    db_handle.session.delete(task)
+    assert Tasks.query.count() == 0
+    #this works
+
+    ##tests onDelete, by deleting the phase and project from database
+    task = _get_task()
+    project = _get_project()
+    phase = _get_phase()
+    task.project = project
+    task.phase = phase
+    db_handle.session.add(task)
+    db_handle.session.commit()
+    db_handle.session.delete(project)
+    assert Tasks.query.first().project == None
+    db_handle.session.delete(phase)
+    assert Tasks.query.first().phase == None
+    #this works
+
+    #tests onModify, by changing the phase and project
+    phase1 = _get_phase()
+    phase2 = _get_phase()
+    phase2.name = "phase2"
+    project1 = _get_project()
+    project2 = _get_project(name="toinen projekti")
+    task.phase = phase1
+    task.project = project1
+    db_handle.session.add(task)
+    db_handle.session.commit()
+    assert Tasks.query.first().phase.name == "testi phase"
+    assert Tasks.query.first().project.name == "projekti"
+    task.phase = phase2
+    task.project = project2
+    db_handle.session.add(task)
+    db_handle.session.commit()
+    assert Project.query.filter_by(name="toinen projekti").first().tasks[0].name == "task"
+    assert Phase.query.filter_by(name="phase2").first().task[0].name == "task"
+    #this works
+
+    # tests for foreign key violations, adding 2 tasks with same names
+    task2 = _get_task()
+    task2.name = "task"
+    db_handle.session.add(task2)
+    with pytest.raises(IntegrityError):
+        db_handle.session.commit()
+    # this works
+
+    # tests all the constraints in the Costs table, name not null and hourly_price, quantity and total_costs >= 0
+    def test_task_constraints(db_handle):
+        task = Tasks(name="taski",
+                          start=datetime.date(2020, 1, 1),
+                          end=datetime.date(2019, 1, 1),
+                          total_hours=-1,
+                          total_cost=-1,
+                          status="asdasd")
+        db_handle.session.add(task)
+        with pytest.raises(IntegrityError):
+            db_handle.session.commit()
+
+
+def test_all_team(db_handle):
+    # test adds new team to database
     team = _get_team()
     db_handle.session.add(team)
     db_handle.session.commit()
     assert Teams.query.count() == 1
+    #this works
+
+    # test retrieves team from database and compares it to the added one
+    new_team = Teams.query.first()
+    assert new_team == team
+    # this works
+
+    # test removes a task from the database
+    db_handle.session.delete(team)
+    assert Teams.query.count() == 0
+    # this works
+
+    ##tests onDelete, by deleting the member and team from database
+    team = _get_team()
+    member = _get_member()
+    task = _get_task()
+    team.team_members = member
+    team.team_tasks = task
+    db_handle.session.add(team)
+    db_handle.session.commit()
+    db_handle.session.delete(member)
+    assert Teams.query.first().team_members == None
+    db_handle.session.delete(task)
+    assert Teams.query.first().team_tasks == None
+    #this works
+
+    #tests onModify, by changing the member and task
+    member1= _get_member()
+    member2= _get_member()
+    member2.name = "member2"
+    task1 = _get_task()
+    task2 = _get_task()
+    task2.name = "task2"
+    team.team_members = member1
+    team.team_tasks = task1
+    db_handle.session.add(team)
+    db_handle.session.commit()
+    assert Teams.query.first().team_members.name == "testiukko"
+    assert Teams.query.first().team_tasks.name == "task"
+    team.team_members = member2
+    team.team_tasks = task2
+    db_handle.session.add(team)
+    db_handle.session.commit()
+    assert Members.query.filter_by(name="member2").first().membership[0].id == 1
+    assert Tasks.query.filter_by(name="task2").first().team[0].id == 1
+    #this works
 
 #test adds new hour to database
 def test_create_hour(db_handle):
