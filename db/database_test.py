@@ -297,11 +297,10 @@ def test_all_costs_tests(db_handle):
     assert Phase.query.filter_by(name="phase2").first().costs[0].name == "testi cost"
     #this works
 
-#tests all the constraints in the Costs table, name not null and hourly_price, quantity and total_costs >= 0
+#tests all the constraints in the Costs table, hourly_price and quantity >= 0
 def test_cost_constraints(db_handle):
     cost = Costs(hourly_price=-1,
-                 quantity=-1,
-                 total_costs=-1)
+                 quantity=-1)
     db_handle.session.add(cost)
     with pytest.raises(IntegrityError):
         db_handle.session.commit()
