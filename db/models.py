@@ -34,7 +34,7 @@ class Project(db.Model):
     '''status = db.Column(db.String(16),
                        db.CheckConstraint("status == 'not started' OR status == 'started' OR status == 'finished'"),
                        default="not started", nullable=False)'''
-    status = db.Column(db.Enum(status_type))
+    status = db.Column(db.Enum(status_type), nullable=False)
     tasks = db.relationship("Tasks", back_populates="project")
     phases = db.relationship("Phase", back_populates="project")
     project_manager = db.relationship("Members", back_populates="managed_project")
