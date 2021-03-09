@@ -5,7 +5,7 @@ import sys
 
 import models
 
-from models import Project, Phase, Costs, Members, Tasks, Teams, Hours
+from models import Project, Phase, Costs, Members, Tasks, Teams, Hours, status_type
 from sqlalchemy.engine import Engine
 from sqlalchemy import event
 from sqlalchemy.exc import IntegrityError
@@ -34,7 +34,7 @@ def db_handle():
     os.close(db_fd)
     os.unlink(db_fname)
 
-def _get_project(name="projekti", status="not started"):
+def _get_project(name="projekti", status=status_type.NOT_STARTED):
     project = Project(
         name=name,
         status=status
@@ -48,7 +48,7 @@ def _get_member():
     )
     return member
 
-def _get_phase(name="testi phase", status="not started"):
+def _get_phase(name="testi phase", status=status_type.NOT_STARTED):
     phase = Phase(
         name=name,
         status=status
@@ -61,7 +61,7 @@ def _get_cost():
     )
     return cost
 
-def _get_task(name="task", status="not started"):
+def _get_task(name="task", status=status_type.NOT_STARTED):
     task = Tasks(
         name=name,
         status=status
@@ -80,7 +80,7 @@ def _get_hour():
 
 def test_all_project_tests(db_handle):
     #test adds new project to database
-    project = _get_project("p1","not started")
+    project = _get_project("p1",status_type.NOT_STARTED)
     phase = _get_phase()
     phase.project = project
     db_handle.session.add(project)
@@ -241,7 +241,7 @@ def test_phase_constraints(db_handle):
         print(Phase.query.first().name)
 
     db_handle.session.rollback()
-    phase.status = "not started"
+    phase.status = status_type.NOT_STARTED
     db_handle.session.add(phase)
     db_handle.session.commit()
 
@@ -261,7 +261,7 @@ def test_all_phase_tests(db_handle):
     phase.project = project
     phase.deadline = datetime.date(2020, 2, 28)
     task1 = _get_task("testi_task1")
-    task2 = _get_task("testi_task2", "started")
+    task2 = _get_task("testi_task2", status_type.NOT_STARTED)
 
     task1.phase = phase
     task2.phase = phase
@@ -297,9 +297,9 @@ def test_all_phase_tests(db_handle):
     db_handle.session.add(phase2)
     db_handle.session.commit()
     print("Added phase again: ", Tasks.query.first().phase.name)
-    phase2.status = "finished"
+    phase2.status = status_type.FINISHED
     print(Tasks.query.first().phase.status)
-    assert Tasks.query.first().phase.status == "finished"
+    assert Tasks.query.first().phase.status == status_type.FINISHED
     #this works
     
 
