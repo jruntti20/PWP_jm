@@ -5,7 +5,7 @@ import sys
 
 import database_gen
 
-from database_gen import Project, Phase, Costs, Members, Tasks, Teams, Hours
+from models import Project, Phase, Costs, Members, Tasks, Teams, Hours
 from sqlalchemy.engine import Engine
 from sqlalchemy import event
 from sqlalchemy.exc import IntegrityError
