@@ -20,15 +20,18 @@ API description wiki page was reviewed with the assistant.
 *ONLY USED BY COURSE STAFF: Additional comments from the course staff*
 
 ## Meeting 2.
-* **DATE:**
-* **ASSISTANTS:**
+* **DATE:**2.3.2021
+* **ASSISTANTS:**Mika Oja
 
 ### Minutes
-*Summary of what was discussed during the meeting*
+Database design and implementation wiki page was reviewed with the assistant.
 
 ### Action points
-*List here the actions points discussed with assistants*
-
+* Update wiki pages database description (old picture)
+* change status type from text to enum
+* Change -> Cascade
+* Too many database tables --> some of them must be removed before implementation
+* foreing keys implementation with event.listens
 
 ### Comments from staff
 *ONLY USED BY COURSE STAFF: Additional comments from the course staff*
