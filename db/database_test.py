@@ -3,7 +3,7 @@ import pytest
 import tempfile
 import sys
 
-import database_gen
+import models
 
 from models import Project, Phase, Costs, Members, Tasks, Teams, Hours
 from sqlalchemy.engine import Engine
@@ -22,15 +22,15 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 @pytest.fixture
 def db_handle():
     db_fd, db_fname = tempfile.mkstemp()
-    database_gen.app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + db_fname
-    database_gen.app.config["TESTING"] = True
+    models.app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + db_fname
+    models.app.config["TESTING"] = True
 
-    with database_gen.app.app_context():
-        database_gen.db.create_all()
+    with models.app.app_context():
+        models.db.create_all()
 
-    yield database_gen.db
+    yield models.db
 
-    database_gen.db.session.remove()
+    models.db.session.remove()
     os.close(db_fd)
     os.unlink(db_fname)
 
