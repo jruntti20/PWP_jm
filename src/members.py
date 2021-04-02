@@ -231,63 +231,14 @@ class ProjectMemberItem(Resource):
 
 class TaskMembers(Resource):
     def get(self, project, phase, task):
-        # get all members
-        db_members = Members.query.all()
-
-        if db_members == None:
-            return Response(status=501)
-
-        body = MemberBuilder()
-        body.add_namespace("promana", LINK_RELATIONS_URL)
-        body.add_control("self", api.url_for(TaskMembers))
-        body.add_control_add_member()
-        body["items"] = []
-
-        for member in db_members:
-            item = MemberBuilder(
-                name=member.name)
-            item.add_control("self", api.url_for(TaskMembers, project=project, phase=phase, task=task, member=member.name))
-            body["items"].append(item)
-
-        return Response(json.dumps(body), 200)
+        pass
 
     def post(self, project, phase, task):
-        # add new member
-        if not request.json:
-            return create_error_response(415, "Unsupported media type",
-                "Requests must be JSON"
-            )
-
-        try:
-            validate(request.json, MemberBuilder.member_schema())
-        except ValidationError as e:
-            return create_error_response(400, "Invalid JSON document", str(e))
-
-        new_member = Members(
-            name=request.json["name"])
-        
-        try:
-            db.session.add(new_member)
-            db.session.commit()
-        except IntegrityError:
-            return create_error_response(409, "Already exists", 
-                "Member with name '{}' already exists.".format(request.json["name"])
-            )
-
-        return Response(status=201, headers={"location": api.url_for(TaskMembers, project=project, phase=phase, task=task, member=member.name)})
+        pass
 
     # delete member from project
     def delete(self, project, phase, task, member):
-        db_member = Members.query.filter_by(name=member).first()
-        if db_member is None:
-            return create_error_response(404, "Not found", 
-                "No member was found with the name {}".format(member)
-            )
-
-        db.session.delete(db_member)
-        db.session.commit()
-        
-        return Response(status=204)
+        pass
 
 
 api.add_resource(MemberCollection, "/api/members/")
