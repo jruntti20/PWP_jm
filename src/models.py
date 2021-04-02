@@ -4,17 +4,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy import event
 import datetime
 import enum
-
-app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///test.db"
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-db = SQLAlchemy(app)
-
-@event.listens_for(Engine, "connect")
-def set_sqlite_pragma(dbapi_connection, connection_record):
-    cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA foreign_keys=ON")
-    cursor.close()
+from members import db
 
 class status_type(enum.Enum):
     NOT_STARTED = "not started"
@@ -31,9 +21,7 @@ class Project(db.Model):
     total_hours = db.Column(db.Float, db.CheckConstraint("total_hours >= 0"), nullable=True)
     total_costs = db.Column(db.Float, db.CheckConstraint("total_costs >= 0"), nullable=True)
     project_manager_id = db.Column(db.Integer, db.ForeignKey("members.id", ondelete="SET NULL", onupdate="CASCADE"))
-    '''status = db.Column(db.String(16),
-                       db.CheckConstraint("status == 'not started' OR status == 'started' OR status == 'finished'"),
-                       default="not started", nullable=False)'''
+
     status = db.Column(db.Enum(status_type), nullable=False)
     tasks = db.relationship("Tasks", back_populates="project")
     phases = db.relationship("Phase", back_populates="project")
@@ -47,9 +35,7 @@ class Phase(db.Model):
     name = db.Column(db.String(64), default="hankesuunnittelu", nullable=False)
  
     deadline = db.Column(db.DateTime, nullable=True)
-    '''status = db.Column(db.String(16),
-                       db.CheckConstraint("status == 'not started' OR status == 'started' OR status == 'finished'"),
-                       default="not started", nullable=False)'''
+
     status = db.Column(db.Enum(status_type))
     project_id = db.Column(db.Integer, db.ForeignKey("project.id", ondelete="SET NULL", onupdate="CASCADE"))
 
@@ -66,7 +52,7 @@ class Costs(db.Model):
     hourly_price = db.Column(db.Float, db.CheckConstraint("hourly_price >= 0"), nullable=True)
     quantity = db.Column(db.Float, db.CheckConstraint("quantity >= 0"), nullable=True)
     total_costs = db.column_property(hourly_price * quantity)
-    #total_costs = db.Column(db.Float, db.CheckConstraint("total_costs >= 0"), nullable=True)
+    total_costs = db.Column(db.Float, db.CheckConstraint("total_costs >= 0"), nullable=True)
     project = db.relationship("Project", back_populates="costs")
     phase = db.relationship("Phase", back_populates="costs")
 
@@ -75,7 +61,6 @@ class Members(db.Model):
     name = db.Column(db.String(64), nullable=False, unique=True)
     hourly_cost = db.Column(db.Float, db.CheckConstraint("hourly_cost >= 0"), nullable=True)
 
-    # managed_project = db.relationship("Project", cascade="delete-orphan", back_populates="project_manager")
     managed_project = db.relationship("Project", back_populates="project_manager")
     membership = db.relationship("Teams", back_populates="team_members")
     hours = db.relationship("Hours", back_populates="employee")
@@ -90,9 +75,7 @@ class Tasks(db.Model):
     total_cost = db.Column(db.Float, db.CheckConstraint("total_cost >= 0"), nullable=True)
     start = db.Column(db.DateTime, default=datetime.datetime.today().date(), nullable=True)
     end = db.Column(db.DateTime, db.CheckConstraint("start <= end"), nullable=True)
-    '''status = db.Column(db.String(16),
-                       db.CheckConstraint("status == 'not started' OR status == 'started' OR status == 'finished'"),
-                       default="not started", nullable=False)'''
+
     status = db.Column(db.Enum(status_type))
     project = db.relationship("Project", back_populates="tasks")
     team = db.relationship("Teams", back_populates="team_tasks")
