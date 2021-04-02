@@ -4,6 +4,9 @@ from sqlalchemy.exc import IntegrityError
 from flask_restful import Resource
 from flask_restful import Api
 from utils import MasonBuilder, LINK_RELATIONS_URI
+import datetime
+import enum
+import json
 
 app = Flask(__name__)
 api = Api(app)
@@ -11,13 +14,18 @@ app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///test.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
+class status_type(enum.Enum):
+    NOT_STARTED = "not started"
+    STARTED = "started"
+    FINISHED = "finished"
+
 class Members(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64), nullable=False, unique=True)
 
     # managed_project = db.relationship("Project", cascade="delete-orphan", back_populates="project_manager")
-    managed_project = db.relationship("Project", back_populates="project_manager")
-    membership = db.relationship("Teams", back_populates="team_members")
+    #managed_project = db.relationship("Project", back_populates="project_manager")
+    #membership = db.relationship("Teams", back_populates="team_members")
 
 class MemberBuilder(MasonBuilder):
     @staticmethod
@@ -92,6 +100,9 @@ class MemberCollection(Resource):
         # get all members
         db_members = Members.query.all()
 
+        if db_members == None:
+            return Response(status=501)
+
         body = MemberBuilder()
         body.add_namespace("promana", LINK_RELATIONS_URI)
         body.add_control("self", api.url_for(MemberCollection))
@@ -101,7 +112,7 @@ class MemberCollection(Resource):
         for member in db_members:
             item = MemberBuilder(
                 name=member.name)
-            item.add_control("self", api.url_for(MemberItem, id=member.id))
+            item.add_control("self", api.url_for(MemberItem, member=member.name))
             body["items"].append(item)
 
         return Response(json.dumps(body), 200)
@@ -117,23 +128,25 @@ class MemberCollection(Resource):
         except IntegrityError:
             return 409
 
-        return Response(status=201, headers={"location": api.url_for(MemberItem, id=new_member.id)})
+        return Response(status=201, headers={"location": api.url_for(MemberItem, member=new_member.name)})
 
 class MemberItem(Resource):
     #get member
-    def get(self, id):
-        db_member = Members.query.filter_by(id=id).first()
+    def get(self, member):
+        db_member = Members.query.filter_by(name=member).first()
         body = MemberBuilder(
             name=db_member.name)
         body.add_namespace("promana", LINK_RELATIONS_URI)
-        body.add_control("self", api.url_for(MemberItem, id=id))
-        body.add_control("collection", api_url_for(MemberCollection))
-        body.add_control_edit_member(id)
-        body.add_control_delete_member(id)
+        body.add_control("self", api.url_for(MemberItem, member=member))
+        body.add_control("collection", api.url_for(MemberCollection))
+        body.add_control_edit_member(member)
+        body.add_control_delete_member(member)
+
+        return Response(json.dumps(body), 200)
 
     #edit member
-    def patch(self, id):
-        db_member = Members.query.filter_by(id=id).first()
+    def patch(self, member):
+        db_member = Members.query.filter_by(name=member).first()
         db_member.name = request.json["name"]
 
         try:
@@ -144,8 +157,8 @@ class MemberItem(Resource):
         return Response(status=204)
 
     # delete member
-    def delete(self, id):
-        db_member = Members.query.filter_by(id=id).first()
+    def delete(self, member):
+        db_member = Members.query.filter_by(name=member).first()
         db.session.delete(db_member)
         db.session.commit()
         
@@ -172,3 +185,7 @@ class TaskMemberCollection(Resource):
     def delete(self):
         # delete member from task
         pass
+
+
+api.add_resource(MemberCollection, "/api/members/")
+api.add_resource(MemberItem, "/api/members/<member>/")
