@@ -6,7 +6,7 @@ import datetime
 import enum
 
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///project_database.db"
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///test.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
@@ -121,9 +121,5 @@ class Hours(db.Model):
     task = db.relationship("Tasks", back_populates="hours")
     employee = db.relationship("Members", back_populates="hours")
 
-<<<<<<< HEAD
-db.create_all()
-=======
 if __name__ == "__main__":
     db.create_all()
->>>>>>> 8acf5420535ef0a9617f54f0cc8f0e78fcee71c9
