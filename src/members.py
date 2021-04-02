@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from flask_restful import Resource
 from flask_restful import Api
 from utils import MasonBuilder, LINK_RELATIONS_URI
+from models import *
 import datetime
 import enum
 import json
@@ -13,19 +14,6 @@ api = Api(app)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///test.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
-
-class status_type(enum.Enum):
-    NOT_STARTED = "not started"
-    STARTED = "started"
-    FINISHED = "finished"
-
-class Members(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(64), nullable=False, unique=True)
-
-    # managed_project = db.relationship("Project", cascade="delete-orphan", back_populates="project_manager")
-    #managed_project = db.relationship("Project", back_populates="project_manager")
-    #membership = db.relationship("Teams", back_populates="team_members")
 
 class MemberBuilder(MasonBuilder):
     @staticmethod
@@ -154,7 +142,7 @@ class MemberItem(Resource):
         except IntegrityError:
             return 409
 
-        return Response(status=204)
+        return Response(status=204, headers={"location":api.url_for(MemberItem, member=db_member.name)})
 
     # delete member
     def delete(self, member):
