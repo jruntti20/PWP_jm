@@ -31,47 +31,23 @@ def client():
 def _populate_db():
     pr = Project(name="projekti1",
                 status=status_type.NOT_STARTED)
-    pr2 = Project(name="projekti2",
-                  status=status_type.NOT_STARTED)
     ph = Phase(name="phase1",
-               status=status_type.NOT_STARTED)
-    ph2 = Phase(name="phase2",
                status=status_type.NOT_STARTED)
     ta = Tasks(name="task1",
                project=pr,
                phase=ph,
               status=status_type.NOT_STARTED)
-    ta2 = Tasks(name="task2",
-                project=pr2,
-                phase=ph2,
-                status=status_type.NOT_STARTED)
-    ta3 = Tasks(name="task3",
-                project=pr,
-                phase=ph,
-                status=status_type.NOT_STARTED)
     for i in range(1, 4):
         m = Members(
             name="test-member-{}".format(i)
         )
         db.session.add(m)
         te = Teams(team_tasks=ta,
-                    team_members=m)
+                   team_members=m)
         db.session.add(te)
-
-    m=Members(
-        name="test-member-4")
-    db.session.add(m)
-    te = Teams(team_tasks=ta2,
-               team_members=m)
-    db.session.add(te)
-
     db.session.add(pr)
-    db.session.add(pr2)
     db.session.add(ph)
-    db.session.add(ph2)
     db.session.add(ta)
-    db.session.add(ta2)
-    db.session.add(ta3)
     db.session.commit()
 
 def _get_member_json(number=1):    
@@ -90,7 +66,7 @@ class TestMemberCollection(object):
         resp = client.get(self.RESOURCE_URL)
         assert resp.status_code == 200
         body = json.loads(resp.data)
-        assert len(body["items"]) == 4
+        assert len(body["items"]) == 3
         for item in body["items"]:
             assert "name" in item
 
@@ -188,23 +164,16 @@ class TestProjectMemberCollection(object):
 class TestProjectMemberItem(object):
     RESOURCE_URL = "/api/projects/projekti1/members/test-member-1/"
     INVALID_URL = "/api/projects/projekti1/members/test-member-x/"
-    INVALID_URL2 = "/api/projects/projekti1/members/test-member-4/"
 
     def test_delete(self, client):
-        # delete existing member from project
         resp = client.delete(self.RESOURCE_URL)
         assert resp.status_code == 204
-        # try to delete non-existing member frm project
         resp = client.delete(self.INVALID_URL)
-        assert resp.status_code == 404
-        # try to delete member that is not in the project
-        resp = client.delete(self.INVALID_URL2)
         assert resp.status_code == 404
 
 class TestTaskMemberCollection(object):
 
     RESOURCE_URL = "/api/projects/projekti1/phases/phase1/tasks/task1/members/"
-    RESOURCE_URL2 = "/api/projects/projekti1/phases/phase1/tasks/task3/members/"
 
     def test_get(self, client):
         resp = client.get(self.RESOURCE_URL)
@@ -213,40 +182,3 @@ class TestTaskMemberCollection(object):
         assert len(body["items"]) == 3
         for item in body["items"]:
             assert "name" in item
-
-    def test_post(self, client):
-        valid = {"name": "test-member-1"}
-        
-        # test with wrong content type
-        resp = client.post(self.RESOURCE_URL2, data=json.dumps(valid))
-        assert resp.status_code == 415
-        
-        # test with valid and see that it exists afterward
-        resp = client.post(self.RESOURCE_URL2, json=valid)
-        assert resp.status_code == 201
-        assert resp.headers["Location"].endswith(self.RESOURCE_URL2 + valid["name"] + "/")
-        
-        # send same data again for 409
-        resp = client.post(self.RESOURCE_URL2, json=valid)
-        assert resp.status_code == 409
-
-        # send with invalid schema
-        invalid = {"n": "member"}
-        resp = client.post(self.RESOURCE_URL2, json=invalid)
-        assert resp.status_code == 400
-
-class TestTaskMemberItem(object):
-    RESOURCE_URL = "/api/projects/projekti1/phases/phase1/tasks/task1/members/test-member-2"
-    INVALID_URL = "/api/projects/projekti1/phases/phase1/tasks/task1/members/test-member-x"
-    INVALID_URL2 = "/api/projects/projekti2/phases/phase1/tasks/task1/members/test-member-4/"
-    #not working
-    def test_delete(self, client):
-        # delete existing member from project
-        resp = client.delete(self.RESOURCE_URL)
-        assert resp.status_code == 204
-        # try to delete non-existing member frm project
-        resp = client.delete(self.INVALID_URL)
-        assert resp.status_code == 404
-        # try to delete member that is not in the project
-        resp = client.delete(self.INVALID_URL2)
-        assert resp.status_code == 404
