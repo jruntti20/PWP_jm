@@ -24,6 +24,77 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.close()
 
+class ProjectBuilder(MasonBuilder):
+    @staticmethod
+    def project_schema():
+        schema = {
+            "type": "object",
+            "required": ["name", "project_manager"]
+            }
+        props = schema["properties"] = {}
+        props["name"] = {
+            "description": "Name of the project",
+            "type": "string"
+            }
+        props["start"] = {
+            "description": "Start date of the project",
+            "type": "string",
+            "pattern": "^[0-9]{4}-[01][0-9]-[0-3][0-9]$"
+            }
+        props["end"] = {
+            "description": "End date of the project",
+            "type": "string",
+            "pattern": "^[0-9]{4}-[01][0-9]-[0-3][0-9]$"
+            }
+        props["project_manager"] = {
+            "href": "/api/members/{manager}"
+            }
+        props["status"] = {
+            "description": "Status of the project",
+            "type": "string",
+            "enum": ["NOT_STARTED", "STARTED", "FINISHED"]
+            }
+        return schema
+
+    def add_control_add_project(self):
+        self.add_control(
+            "promana:add-project",
+            "/api/projects/",
+            method="POST",
+            encoding="json",
+            title="Add new project",
+            schema=self.project_schema()
+         )
+
+    def add_control_edit_project(self, project):
+        self.add_control(
+            "edit",
+            f"/api/projects/{project}",
+            method="PUT",
+            encoding="json",
+            title="Edit project",
+            schema=self.project_schema()
+        )
+
+    def add_control_project_members(self, project):
+        self.add_control(
+            "promana:project-members",
+            f"/api/projects/{project}/members"
+        )
+
+    def add_control_project_phase(self, project):
+        self.add_control(
+            "promana:project-phase",
+            f"/api/projects/{project}/phase"
+        )
+    
+    def add_control_delete_project(self, project):
+        self.add_control(
+            "promana:delete",
+             f"/api/projects/{project}",
+             method="DELETE"
+        )
+
 class MemberBuilder(MasonBuilder):
     @staticmethod
     def member_schema():
@@ -92,6 +163,114 @@ class MemberBuilder(MasonBuilder):
             self.add_control("promana:delete",
                              f"/api/projects/{project}/phases/{phase}/tasks/{task}/members/{member}/",
                              method="DELETE")
+
+class ProjectCollection(Resource):
+    def get(self):
+        # get all projects
+        db_projects = Project.query.all()
+
+        if db_projects == None:
+            return Response(status=501)
+
+        body = ProjectBuilder()
+        body.add_namespace("promana", LINK_RELATIONS_URL)
+        body.add_control("self", api.url_for(ProjectCollection))
+        body.add_control_add_project()
+        body["items"] = []
+
+        for project in db_projects:
+            if project.start == None:
+                start=project.start
+            else:
+                start=project.start.strftime("%Y-%m-%d")
+            if project.end == None:
+                end=project.end
+            else:
+                end=project.end.strftime("%Y-%m-%d")
+            item = ProjectBuilder(
+                name=project.name,
+                start=start,
+                end=end,
+                project_manager=project.project_manager,
+                status=str(project.status)
+                )
+            item.add_control("self", api.url_for(ProjectItem, project=project.name))
+            body["items"].append(item)
+
+        return Response(json.dumps(body), 200)
+
+    def post(self):
+        if not request.json:
+            return create_error_response(415, "Unsupported media type",
+                "Requests must be JSON"
+            )
+        # add new project
+        manager, start, end = None, None, None
+        new_project = Project(
+            name=request.json["name"],
+            status=status_type[request.json["status"]]
+            )
+        try:
+            manager = Members.query.filter_by(name=request.json["project_manager"])
+        except KeyError:
+            pass
+        try:
+            start = request.json["start"]
+        except KeyError:
+            pass
+        try:
+            end = request.json["end"]
+        except KeyError:
+            pass
+        if manager != None:
+            new_project.project_manager = manager
+        if start != None:
+            new_project.start=datetime.datetime.strptime(start, "%Y-%m-%d")
+        if end != None:
+            new_project.end=datetime.datetime.strptime(end, "%Y-%m-%d")
+        
+        try:
+            db.session.add(new_project)
+            db.session.commit()
+        except IntegrityError:
+            return Response(status=409)
+
+        return Response(status=201, headers={"location": api.url_for(ProjectItem, project=new_project.name)})
+
+
+class ProjectItem(Resource):
+    #get project
+    def get(self, project):
+        db_project = Project.query.filter_by(name=project).first()
+        body = ProjectBuilder(
+            name=db_project.name)
+        body.add_namespace("promana", LINK_RELATIONS_URL)
+        body.add_control("self", api.url_for(ProjectItem, project=project))
+        body.add_control("collection", api.url_for(ProjectCollection))
+        body.add_control_edit_project(project)
+        body.add_control_delete_project(project)
+
+        return Response(json.dumps(body), 200)
+
+    #edit project
+    def put(self, project):
+        db_project = Project.query.filter_by(name=project).first()
+        db_project.name = request.json["name"]
+
+        try:
+            db.session.commit()
+        except IntegrityError:
+            return 409
+
+        return Response(status=204, headers={"location":api.url_for(ProjectItem, project=db_project.name)})
+
+    # delete member
+    def delete(self, project):
+        db_project = Project.query.filter_by(name=project).first()
+        db.session.delete(db_project)
+        db.session.commit()
+        
+        return Response(status=204)
 
 class MemberCollection(Resource):
     def get(self):
@@ -236,17 +415,22 @@ class ProjectMemberItem(Resource):
         if db_project == None:
             return create_error_response(404, "Project not found", f"Project with name {project} not found")
         
+
         db_tasks = Tasks.query.filter_by(project_id=db_project.id)
+        if db_tasks == []:
+            return create_error_response(404, "not found", f"no tasks for this project")
+
+        db_member = Members.query.filter_by(name=member).first()
+        if db_member == None:
+            return create_error_response(404, "not found", f"member {member} not in database")
 
         for task in db_tasks:
-            db_teams = Teams.query.filter_by(team_tasks=task)
-            if db_teams == None:
-                return create_error_response(404, "not found", f"member {member} not in project {project}")
-            for team in db_teams:
-                    db.session.delete(team)
-                    db.session.commit()
-        
-        return Response(status=204)
+            db_team = Teams.query.filter_by(task_id=task.id, member_id=db_member.id).first()
+            if db_team != None:
+                db.session.delete(db_team)
+                db.session.commit()
+                return Response(status=204)
+        return create_error_response(404, "not found", f"member {member} not in project {project}")
 
 class TaskMembers(Resource):
     def get(self, project, phase, task):
@@ -276,28 +460,68 @@ class TaskMembers(Resource):
         return Response(json.dumps(body), 200)
 
     def post(self, project, phase, task):
-        pass
+        if not request.json:
+            return create_error_response(415, "Unsupported media type",
+                "Requests must be JSON"
+            )
+        try:
+            validate(request.json, MemberBuilder.member_schema())
+        except ValidationError as e:
+            return create_error_response(400, "Invalid JSON document", str(e))
+        # add new member to task
+        db_member = Members.query.filter_by(name=request.json["name"]).first()
+        db_task = Tasks.query.filter_by(name=task).first()
+
+        if db_member == None:
+            return create_error_response(404, "not found", f"member {request.json['name']} not in database")
+        if db_task == None:
+            return create_error_response(404, "Task not found", f"Task with name {task} not found")
+        
+        db_team = Teams.query.filter_by(task_id=db_task.id, member_id=db_member.id).first()
+        if db_team != None:
+            return create_error_response(409, "Already exists", 
+                "Member already in task '{}'.".format(task)
+            )
+        new_team = Teams(team_tasks=db_task,
+                         team_members=db_member)
+
+        try:
+            db.session.add(new_team)
+            db.session.commit()
+        except IntegrityError:
+            return create_error_response(409, "Already exists", 
+                "Member already in task '{}'.".format(task)
+            )
+        return Response(status=201, headers={"location": api.url_for(TaskMemberItem, project=project, phase=phase, task=task, member=db_member.name)})
 
 
 class TaskMemberItem(Resource):
-    def delete(self, task, member):
+    def delete(self, project, phase, task, member):
         db_task = Tasks.query.filter_by(name=task).first()
+        db_member = Members.query.filter_by(name=member).first()
+        if db_member == None:
+            return create_error_response(404, "not found", f"member {member} not in database")
         if db_task == None:
             return create_error_response(404, "Task not found", f"Task with name {task} not found")
 
-        for team in db_teams:
-            db.session.delete(team)
+        db_team = Teams.query.filter_by(task_id=db_task.id, member_id=db_member.id).first()
+        if db_team == None:
+            return create_error_response(404, "not found", f"member {member} not in project {project}")
+        else:
+            db.session.delete(db_team)
             db.session.commit()
         
         return Response(status=204)
 
 
+api.add_resource(ProjectCollection, "/api/projects/")
+api.add_resource(ProjectItem, "/api/projects/<project>/")
 api.add_resource(MemberCollection, "/api/members/")
 api.add_resource(MemberItem, "/api/members/<member>/")
 api.add_resource(ProjectMembers, "/api/projects/<project>/members/")
 api.add_resource(ProjectMemberItem, "/api/projects/<project>/members/<member>/")
 api.add_resource(TaskMembers, "/api/projects/<project>/phases/<phase>/tasks/<task>/members/")
-api.add_resource(TaskMemberItem, "/api/projects/<project>/phases/<phase>/tasks/<task>/members/<member>")
+api.add_resource(TaskMemberItem, "/api/projects/<project>/phases/<phase>/tasks/<task>/members/<member>/")
 
 @app.route(LINK_RELATIONS_URL)
 def send_link_relations():

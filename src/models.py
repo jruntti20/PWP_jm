@@ -4,7 +4,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy import event
 import datetime
 import enum
-from members import db
+from app import db
 
 class status_type(enum.Enum):
     NOT_STARTED = "not started"
@@ -20,9 +20,9 @@ class Project(db.Model):
     avg_hourly_cost = db.Column(db.Float, db.CheckConstraint("avg_hourly_cost >= 0"), nullable=True)
     total_hours = db.Column(db.Float, db.CheckConstraint("total_hours >= 0"), nullable=True)
     total_costs = db.Column(db.Float, db.CheckConstraint("total_costs >= 0"), nullable=True)
-    project_manager_id = db.Column(db.Integer, db.ForeignKey("members.id", ondelete="SET NULL", onupdate="CASCADE"))
+    project_manager_id = db.Column(db.Integer, db.ForeignKey("members.id", ondelete="SET NULL", onupdate="CASCADE"), nullable=True)
 
-    status = db.Column(db.Enum(status_type), nullable=False)
+    status = db.Column(db.Enum(status_type), default=status_type.NOT_STARTED, nullable=False)
     tasks = db.relationship("Tasks", back_populates="project")
     phases = db.relationship("Phase", back_populates="project")
     project_manager = db.relationship("Members", back_populates="managed_project")
