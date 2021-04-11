@@ -37,14 +37,20 @@ Database design and implementation wiki page was reviewed with the assistant.
 *ONLY USED BY COURSE STAFF: Additional comments from the course staff*
 
 ## Meeting 3.
-* **DATE:**
-* **ASSISTANTS:**
+* **DATE:** 23.3.2021
+* **ASSISTANTS:** Mika Oja
 
 ### Minutes
 *Summary of what was discussed during the meeting*
 
+API design
+
 ### Action points
 *List here the actions points discussed with assistants*
+
+- Linking Member -resource into Task -resource when a new Task is created
+- Edit is an already existing standard, link relations need to be added
+- Profiles need to be added into the API blueprint.
 
 
 ### Comments from staff
