@@ -29,7 +29,7 @@ class ProjectBuilder(MasonBuilder):
     def project_schema():
         schema = {
             "type": "object",
-            "required": ["name", "project_manager"]
+            "required": ["name", "status"]
             }
         props = schema["properties"] = {}
         props["name"] = {
@@ -187,12 +187,16 @@ class ProjectCollection(Resource):
                 end=project.end
             else:
                 end=project.end.strftime("%Y-%m-%d")
+            if project.project_manager == None:
+                manager=None
+            else:
+                manager=project.project_manager.name
             item = ProjectBuilder(
                 name=project.name,
                 start=start,
                 end=end,
-                project_manager=project.project_manager,
-                status=str(project.status)
+                project_manager=manager,
+                status=str(project.status.value)
                 )
             item.add_control("self", api.url_for(ProjectItem, project=project.name))
             body["items"].append(item)
@@ -200,18 +204,24 @@ class ProjectCollection(Resource):
         return Response(json.dumps(body), 200)
 
     def post(self):
+        # add new project
+        db.session.rollback()
         if not request.json:
             return create_error_response(415, "Unsupported media type",
                 "Requests must be JSON"
             )
-        # add new project
+        try:
+            validate(request.json, ProjectBuilder.project_schema())
+        except ValidationError as e:
+            return create_error_response(400, "Invalid JSON document", str(e))
+
         manager, start, end = None, None, None
         new_project = Project(
             name=request.json["name"],
             status=status_type[request.json["status"]]
             )
         try:
-            manager = Members.query.filter_by(name=request.json["project_manager"])
+            manager = Members.query.filter_by(name=request.json["project_manager"]).first()
         except KeyError:
             pass
         try:
@@ -228,12 +238,13 @@ class ProjectCollection(Resource):
             new_project.start=datetime.datetime.strptime(start, "%Y-%m-%d")
         if end != None:
             new_project.end=datetime.datetime.strptime(end, "%Y-%m-%d")
-        
         try:
             db.session.add(new_project)
             db.session.commit()
         except IntegrityError:
-            return Response(status=409)
+            return create_error_response(409, "Already exists",
+                "Project with name '{}' already exists.".format(request.json["name"])
+            )
 
         return Response(status=201, headers={"location": api.url_for(ProjectItem, project=new_project.name)})
 
@@ -242,8 +253,27 @@ class ProjectItem(Resource):
     #get project
     def get(self, project):
         db_project = Project.query.filter_by(name=project).first()
+        if db_project == None:
+            return create_error_response(404, "Not found", f"Project with name {project} not found.")
+
+        if db_project.project_manager == None:
+            manager=None
+        else:
+            manager=db_project.project_manager.name
+
+        if db_project.start != None:
+            db_project.start=datetime.datetime.strftime(db_project.start, "%Y-%m-%d")
+
+        if db_project.end != None:
+            db_project.end=datetime.datetime.strftime(db_project.end, "%Y-%m-%d")
+
         body = ProjectBuilder(
-            name=db_project.name)
+            name=db_project.name,
+            start=str(db_project.start),
+            end=str(db_project.end),
+            project_manager=str(manager),
+            status=str(db_project.status.value)
+        )
         body.add_namespace("promana", LINK_RELATIONS_URL)
         body.add_control("self", api.url_for(ProjectItem, project=project))
         body.add_control("collection", api.url_for(ProjectCollection))
@@ -254,13 +284,53 @@ class ProjectItem(Resource):
 
     #edit project
     def put(self, project):
+        db.session.rollback()
+
+        if not request.json:
+            return create_error_response(415, "Unsupported media type",
+                "Requests must be JSON"
+            )
+        try:
+            validate(request.json, ProjectBuilder.project_schema())
+        except ValidationError as e:
+            return create_error_response(400, "Invalid JSON document", str(e))
+
         db_project = Project.query.filter_by(name=project).first()
-        db_project.name = request.json["name"]
+        if db_project == None:
+            return create_error_response(404,"not found", f"project with name {project} not found")
+        manager=None
+        try:
+            manager = Members.query.filter_by(name=request.json["project_manager"]).first()
+        except (KeyError, TypeError):
+            pass
+
+        if manager != None:
+            db_project.project_manager = manager
+
+        try:
+            db_project.name = request.json["name"]
+        except (KeyError, TypeError):
+            pass
+
+        try:
+            db_project.start = datetime.datetime.strptime(request.json["start"], "%Y-%m-%d")
+        except (KeyError, TypeError):
+            pass
+
+        try:
+            db_project.end = datetime.datetime.strptime(request.json["end"], "%Y-%m-%d")
+        except (KeyError, TypeError):
+            pass
+
+        try:
+            db_project.status = request.json["status"]
+        except (KeyError, TypeError):
+            pass
 
         try:
             db.session.commit()
         except IntegrityError:
-            return 409
+            return create_error_message(409, "already exists", "project with name already exists")
 
         return Response(status=204, headers={"location":api.url_for(ProjectItem, project=db_project.name)})
 
