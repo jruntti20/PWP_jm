@@ -330,13 +330,17 @@ class ProjectItem(Resource):
         try:
             db.session.commit()
         except IntegrityError:
-            return create_error_message(409, "already exists", "project with name already exists")
+            return create_error_response(409, "already exists", "project with name already exists")
 
         return Response(status=204, headers={"location":api.url_for(ProjectItem, project=db_project.name)})
 
-    # delete member
+    # delete project
     def delete(self, project):
         db_project = Project.query.filter_by(name=project).first()
+        if db_project is None:
+            return create_error_response(404, "Not found", 
+                "No project was found with the name {}".format(project)
+            )
         db.session.delete(db_project)
         db.session.commit()
         
