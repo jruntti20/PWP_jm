@@ -303,13 +303,117 @@ class TaskCollection(Resource):
 
         for task in db_tasks:
 
-            if 
+            if task.phase = None:
+                phase = task.phase
+            else:_
+                task_phase = task.phase.name
+            if task.task_start = None:
+                task_start = task.task_start
+            else:
+                task_start = task.start.strftime("%Y-%m-%d")
+            if task.task_end = None:
+                task_end = task.task_end
+            else:
+                task_end = task.task_end.strftime("%Y-%m-%d")
 
+            item = TaskBuilder(
+                name = task.name,
+                phase=phase,
+                task_start=task_start,
+                task_end=task_end,
+                status = task.status,
+                )
+            item.add_control("self", api.url_for(TaskItem, project=project.name, phase=phase.name,
+                                                 task=task.name))
+            body["items"].append(item)
+
+        return Response(json.dumps(body), 200)
+
+    def post(self):
+
+        db.session.rollback()
+        if not request.json:
+            return create_error_response(415, "Unsupported media type",
+                                         "Requests must be JSON"
+                                         )
+        try:
+            validate(request.json, TaskBuilder.task_schema())
+        except ValidationError as e:
+            return create_error_response(400, "Invalid JSON document", str(e))
+
+        project, phase, task_start, task_end, status = None, None, None, None, None
+                new_task = Task(
+                    name=request.json["name"],
+                    #project = request.json["project"], Piäiskö olla myös project property?
+                    phase=request.json["phase"],
+                    task_start=request.json["task_start"],
+                    task_end=request.json["task_end"],
+                    status=status_type[request.json["status"]]
+                    )
+                try:
+                    phase = Phase.query.filter_by(name=request.json["name"]).first()
+                except KeyError:
+                    pass
+                try:
+                    task_start = request.json["task_start"]
+                except KeyError:
+                    pass
+                try:
+                    task_end = request.json["task_end"]
+                except KeyError:
+                    pass
+                if phase != None:
+                    new_task.phase = phase
+                if task_start != None:
+                    new_task.task_start=datetime.datetime.strptime(task_start, "%Y-%m-%d")
+                if task_end != None:
+                    new_task.task_end=datetime.datetime.strptime(task_end, "%Y-%m-%d")
+                try:
+                    db.session.add(new_task)
+                    db.session.commit()
+                except IntegrityError:
+                    return create_error_response(409, "Already exists",
+                        "Project with name '{}' already exists.".format(request.json["name"])
+                    )
+
+                return Response(status=201, headers={"location": api.url_for(TaskItem,
+                                                                             task=new_task.name
+                                                                             )})
 
 
 class TaskItem(Resource):
     pass
+    def get(self, task):
+        db_task = Task.query.filter_by(name=task).first()
+        if db_task == None:
+            return create_error_response(404, "Not found", f"Task with name {task} not found.")
 
+        if db_task.phase == None:
+            phase=None
+        else:
+            phase=db_task.phase.name
+
+        if db_task.task_start != None:
+            db_task.task_start=datetime.datetime.strftime(db_task.task_start, "%Y-%m-%d")
+
+        if db_task.task_end != None:
+            db_task.task_end=datetime.datetime.strftime(db_task.task_end, "%Y-%m-%d")
+
+        body = TaskBuilder(
+            name=db_task.name,
+            phase=db_task.phase,
+            project=db_task.project  # tarvitaanko property?
+            task_start=str(db_task.task_start),
+            task_end=str(db_task.task_end),
+            status=str(db_project.status.value)
+        )
+        body.add_namespace("promana", LINK_RELATIONS_URL)
+        body.add_control("self", api.url_for(TaskItem, task=task))
+        body.add_control("collection", api.url_for(TaskCollection))
+        body.add_control_edit_task(project, phase, task)
+        body.add_control_delete_task(project, phase, task)
+
+        return Response(json.dumps(body), 200)
 class ProjectCollection(Resource):
     def get(self):
         # get all projects
