@@ -1,5 +1,4 @@
 <<<<<<< HEAD
-LINK_RELATIONS_URI = "/promana/link-relations"
 =======
 from flask import request, Response
 import json

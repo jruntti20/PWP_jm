@@ -163,6 +163,152 @@ class MemberBuilder(MasonBuilder):
             self.add_control("promana:delete",
                              f"/api/projects/{project}/phases/{phase}/tasks/{task}/members/{member}/",
                              method="DELETE")
+###
+class TaskBuilder(MasonBuilder):
+    @staticmethod
+    def task_schema():
+        schema = {
+            "type": "object",
+            "required": ["name", "phase", "task_start", "task_end"]
+            }
+        props = schema["properties"] = {}
+        props["name"] = {
+            "description": "Name of the member",
+            "type": "string"
+            }
+        props["phase"] = {
+            "description": "Phase of the task",
+            "type": "string",
+            "enum": ["NOT_STARTED", "STARTED", "FINISHED"]
+        }
+        props["task_start"] = {
+            "description": "Start date of the task",
+            "type": "string",
+            "pattern": "^[0-9]{4}-[01][0-9]-[0-3][0-9]$"
+        }
+        props["task_end"] = {
+            "description": "End date of the task",
+            "type": "string",
+            "pattern": "^[0-9]{4}-[01][0-9]-[0-3][0-9]$"
+        }
+        return schema
+
+
+    def add_control_add_task(self, project, phase=None):
+        if phase == None:
+            self.add_control("promana:add-task",
+                             f"/api/projects/{project}/tasks/",
+                             method="POST",
+                             encoding="json",
+                             title="Add new task to project",
+                             schema=self.member_schema())
+        else:
+            self.add_control("promana:add-task",
+                             f"/api/projects/{project}/phases/{phase}/tasks/",
+                             method="POST",
+                             encoding="json",
+                             title="Add new task to a project phase",
+                             schema=self.task_schema())
+    
+    def add_control_edit_task(self, project, phase, task):
+        if phase = None:
+            self.add_control("edit",
+                             #href=api.url_for(TaskItem, project=project, task=task),
+                             href="/api/projects/{project}/tasks/{task}/ 
+                             method="PATCH",
+                             encoding="json",
+                             title="Edit project task",
+                             schema=self.task_schema()
+                             )
+        else:
+            self.add_control("edit",
+                             f"/api/projects/{project}/phases/{phase}/tasks/{task}/",
+                             method="PATCH",
+                             encoding="json",
+                             title="Edit project phase task",
+                             schema=self.task_schema())
+    
+    def add_control_task_members(self, project, phase, task):
+        self.add_control("task-members",
+                         f"/api/projects/{project}/phases/{phase}/tasks/{task}/members")
+    
+    def add_control_task_phase(self, project, phase):
+        self.add_control("task-phase",
+                         #api.url_for(PhaseItem, task=task),
+                         f"/api/projects/{project}/phases/{phase}/")
+    
+    def add_control_delete_task(self, project=None, phase=None, task):
+        if project == None:
+            self.add_control("promana:delete",
+                             api.url_for(MemberItem, member=member),
+                             #f"/api/members/{member}/",
+                             method="DELETE")
+        elif task == None:
+            self.add_control("promana:delete",
+                             f"/api/projects/{project}/members/{member}/",
+                             method="DELETE")
+        else:
+            self.add_control("promana:delete",
+                             f"/api/projects/{project}/phases/{phase}/tasks/{task}/members/{member}/",
+                             method="DELETE")
+###
+
+
+class PhaseBuilder(MasonBuilder):
+    @staticmethod
+    def task_schema():
+        schema = {
+            "type": "object",
+            "required": ["name", "status", "deadline"]
+            }
+        props = schema["properties"] = {}
+        props["name"] = {
+            "description": "Name of the phase",
+            "type": "string"
+            }
+        props["phase"] = {
+            "description": "Phase of the task",
+            "type": "string",
+            "enum": ["NOT_STARTED", "STARTED", "FINISHED"]
+        }
+        props["task_start"] = {
+            "description": "Start date of the task",
+            "type": "string",
+            "pattern": "^[0-9]{4}-[01][0-9]-[0-3][0-9]$"
+        }
+        props["task_end"] = {
+            "description": "End date of the task",
+            "type": "string",
+            "pattern": "^[0-9]{4}-[01][0-9]-[0-3][0-9]$"
+        }
+        return schema
+
+
+
+
+class TaskCollection(Resource):
+
+    def get(self):
+
+        db_tasks = Task.query.all()
+
+        if db_tasks = None:
+            return Response(status=501)
+
+        body = TaskBuilder()
+        body.add_namespace("promana", LINK_RELATIONS_URL)
+        body.add_control("self", api.url_for(TaskCollection))
+        body.add_control_add_task()
+        body["items"] = []
+
+        for task in db_tasks:
+
+            if 
+
+
+
+class TaskItem(Resource):
+    pass
 
 class ProjectCollection(Resource):
     def get(self):
