@@ -169,7 +169,7 @@ class TaskBuilder(MasonBuilder):
     def task_schema():
         schema = {
             "type": "object",
-            "required": ["name", "phase", "task_start", "task_end"]
+            "required": ["name", "phase", "project", "task_start", "task_end"]
             }
         props = schema["properties"] = {}
         props["name"] = {
@@ -251,8 +251,6 @@ class TaskBuilder(MasonBuilder):
             self.add_control("promana:delete",
                              f"/api/projects/{project}/phases/{phase}/tasks/{task}/members/{member}/",
                              method="DELETE")
-###
-
 
 class PhaseBuilder(MasonBuilder):
     @staticmethod
@@ -282,8 +280,6 @@ class PhaseBuilder(MasonBuilder):
             "pattern": "^[0-9]{4}-[01][0-9]-[0-3][0-9]$"
         }
         return schema
-
-
 
 
 class TaskCollection(Resource):
@@ -379,7 +375,6 @@ class TaskCollection(Resource):
                 return Response(status=201, headers={"location": api.url_for(TaskItem,
                                                                              task=new_task.name
                                                                              )})
-
 
 class TaskItem(Resource):
     pass
