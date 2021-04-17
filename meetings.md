@@ -57,15 +57,25 @@ API design
 *ONLY USED BY COURSE STAFF: Additional comments from the course staff*
 
 ## Meeting 4.
-* **DATE:**
-* **ASSISTANTS:**
+* **DATE:** 16.4.2021
+* **ASSISTANTS:** Mika Oja
 
 ### Minutes
 *Summary of what was discussed during the meeting*
 
+API implementation and test
+
 ### Action points
 *List here the actions points discussed with assistants*
 
+- change Members PATCH to PUT
+- add docstring to functions
+- change project put method (if changing just one part other should not be None)
+- strftime parts should be done with try except instead of if else
+- change == to "is" if evaluating Nonetypes
+- use one indentation style
+- add sources to other peoples work
+- fix redirect error in task delete method
 
 ### Comments from staff
 *ONLY USED BY COURSE STAFF: Additional comments from the course staff*
