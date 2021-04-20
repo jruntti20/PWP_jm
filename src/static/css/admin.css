@@ -1,0 +1,33 @@
+form label {
+    font-weight: bold;
+    display:block;/*Necessary for the first letter*/
+}
+form label:first-letter{
+    text-transform: uppercase;
+}
+#myTable1 {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+#myTable1 td, #myTable1 th {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+
+#myTable1 tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+#myTable1 tr:hover {
+        background-color: #ddd;
+        visibility: visible;
+    }
+
+#content {
+    width: 60%;
+    float:left;
+}
+#form {
+    float:right;
+}
