@@ -1,33 +1,41 @@
-form label {
-    font-weight: bold;
-    display:block;/*Necessary for the first letter*/
-}
-form label:first-letter{
+form label:first-letter, memberform label:first-letter{
     text-transform: uppercase;
 }
-#myTable1 {
+
+#myTable1, #membertable {
     border-collapse: collapse;
     width: 100%;
+    float:left;
 }
 
-#myTable1 td, #myTable1 th {
+#myTable1 td, #myTable1 th, #membertable td, #membertable td {
     border: 1px solid #ddd;
     padding: 8px;
 }
 
-#myTable1 tr:nth-child(even) {
+#myTable1 tr:nth-child(even), #membertable tr:nth-child(even) {
     background-color: #f2f2f2;
 }
 
-#myTable1 tr:hover {
-        background-color: #ddd;
-        visibility: visible;
-    }
+#myTable1 tr:hover, #membertable tr:hover {
+    background-color: #ddd;
+    visibility: visible;
+}
 
 #content {
-    width: 60%;
-    float:left;
+    width:100%;
+    height: 40%;
 }
-#form {
-    float:right;
+#tablecontents, #tblctrl {
+    width: 60%;
+    float: left;
+}
+
+#form label, #memberform label {
+    float: left;
+}
+#memberdiv, #tblctrl2 {
+    width: 30%;
+    float: right;
+    margin-left: 10px;
 }
