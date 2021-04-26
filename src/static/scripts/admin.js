@@ -1,18 +1,25 @@
 "use strict";
 
+// Template from Programmable Web Project example:
+// https://lovelace.oulu.fi/ohjelmoitava-web/ohjelmoitava-web/exercise-4-implementing-hypermedia-clients/#full-example
+
+// from the Programmable Web Project example
 const DEBUG = true;
 const MASONJSON = "application/vnd.mason+json";
 const PLAINJSON = "application/json";
 
+// from the Programmable Web Project example
 function renderError(jqxhr) {
     let msg = jqxhr.responseJSON["@error"]["@message"];
     $("div.notification").html("<p class='error'>" + msg + "</p>");
 }
 
+// from the Programmable Web Project example
 function renderMsg(msg) {
     $("div.notification").html("<p class='msg'>" + msg + "</p>");
 }
 
+// from the Programmable Web Project example
 function getResource(href, renderer) {
     $.ajax({
         url: href,
@@ -35,7 +42,23 @@ function deleteResource(event, a) {
     });
 }
 
+function deleteMember(event, a) {
+    event.preventDefault();
+    let resource = $(a);
+    $.ajax({
+        url: resource.attr("href"),
+        method: "DELETE",
+        success: function () {
+            var i = a.parentNode.parentNode.rowIndex;
+            document.getElementById("membertable").deleteRow(i);
+        },
+        error: renderError
+    });
+}
+
+// from the Programmable Web Project example
 function sendData(href, method, item, postProcessor) {
+    console.log(item);
     $.ajax({
         url: href,
         type: method,
@@ -82,6 +105,17 @@ function projectRow(item) {
             "</td></tr>";
 }
 
+function memberRow(item) {
+    let deleteLink = "<a href='" +
+        item["@controls"].self.href +
+        "' onClick='deleteMember(event, this, renderMembers)'>delete</a>";
+
+    return "<tr><td>" + item.name +
+        "</td><td>" + deleteLink +
+        "</td></tr>";
+}
+
+// from the Programmable Web Project example
 function followLink(event, a, renderer) {
     event.preventDefault();
     getResource($(a).attr("href"), renderer);
@@ -91,12 +125,37 @@ function appendProjectRow(body) {
     $(".resulttable tbody").append(projectRow(body));
 }
 
+function appendMemberRow(body) {
+    $(".membertable tbody").append(memberRow(body));
+}
+
+// from the Programmable Web Project example
 function getSubmittedProject(data, status, jqxhr) {
-    renderMsg("Successful");
+    renderMsg("Succesful");
     let href = jqxhr.getResponseHeader("Location");
     if (href) {
         getResource(href, appendProjectRow);
     }
+}
+
+function getSubmittedMember(data, status, jqxhr) {
+    renderMsg("Succesful");
+    let href = jqxhr.getResponseHeader("Location");
+    if (href) {
+        getResource(href, appendMemberRow);
+    }
+}
+
+function renderMemberForm(ctrl) {
+    let form = $("<form>");
+    let name = ctrl.schema.properties.name;
+    form.attr("action", ctrl.href);
+    form.attr("method", ctrl.method);
+    form.submit(submitMember);
+    form.append("<label>" + name.description + "</br>" +
+        "<input type='text' name='name1'>" + "</label>");
+    form.append("<input type='submit' name='submit' value='Submit'>");
+    $("div.memberform").html(form);
 }
 
 function renderProjectForm(ctrl) {
@@ -109,20 +168,30 @@ function renderProjectForm(ctrl) {
     form.attr("action", ctrl.href);
     form.attr("method", ctrl.method);
     form.submit(submitProject);
-    form.append("<label>" + name.description + "</label>");
-    form.append("<input type='text' name='name'>");
-    form.append("<label>" + start.description + "</label>");
-    form.append("<input type='text' name='start'>");
-    form.append("<label>" + end.description + "</label>");
-    form.append("<input type='text' name='end'>");
-    form.append("<label>" + project_manager.description + "</label>");
-    form.append("<input type='text' name='project_manager'>");
-    form.append("<label>" + status.description + "</label>");
-    form.append("<input type='text' name='status'>");
+    form.append("<label>" + name.description + "</br>" +
+        "<input type='text' name='name'>" + "</label>");
+    form.append("<label>" + start.description + "</br>" +
+        "<input type='date' name='start'>" + "</label>");
+    form.append("<label>" + end.description + "</br>" +
+        "<input type='date' name='end'>" + "</label>");
+    form.append("<label>" + project_manager.description + "</br>" +
+        "<input type='text' name='project_manager'>" + "</label>");
+    form.append("<label>" + status.description + "</br>" +
+        "<select name='status'>" +
+        "<option value='NOT_STARTED'>not started</option>" + 
+        "<option value='STARTED'>started</option>" +
+        "<option value='FINISHED'>finished</option>" +
+        "</select></label></br></br>");
     ctrl.schema.required.forEach(function (property) {
         $("input[name='" + property + "']").attr("required", true);
     });
-    form.append("<input type='submit' name='submit' value='Submit'>");
+    var submit_text = "";
+    if (ctrl.method == "POST") {
+        submit_text = "Submit";
+    } else {
+        submit_text = "Edit";
+    }
+    form.append("<input type='submit' name='submit' value='" + submit_text + "'>");
     $("div.form").html(form);
 }
 
@@ -132,34 +201,61 @@ function submitProject(event) {
     let data = {};
     let form = $("div.form form");
     data.name = $("input[name='name']").val();
-    data.start = $("input[name='start date']").val();
-    data.end = $("input[name='end date']").val();
+    if (data.name == "") {
+        alert("Name can not be empty!");
+        return false;
+    }
+    data.start = $("input[name='start']").val();
+    if (data.start == "") {
+        data.start = undefined;
+    }
+    data.end = $("input[name='end']").val();
+    if (data.end == "") {
+        data.end = undefined;
+    }
     data.project_manager = $("input[name='manager']").val();
-    data.status = $("input[name='status']").val();
+    data.status = $("select[name='status']").val();
     sendData(form.attr("action"), form.attr("method"), data, getSubmittedProject);
 }
 
+function submitMember(event) {
+    event.preventDefault();
+
+    let data = {};
+    let form = $("div.memberform form");
+    data.name = $("input[name='name1']").val();
+    if (data.name == "") {
+        alert("Name can not be empty!");
+        return false;
+    }
+    sendData(form.attr("action"), form.attr("method"), data, getSubmittedMember);
+}
+
 function renderProject(body) {
+    getResource("/api/projects/" + body.name + "/members/", renderProjectMembers);
     $("div.navigation").html(
         "<a href='" +
         body["@controls"].collection.href +
         "' onClick='followLink(event, this, renderProjects)'>collection</a>"
     );
-    $(".resulttable thead").empty();
-    $(".resulttable tbody").empty();
+    let tbody = $(".resulttable tbody");
+    tbody.empty();
+    tbody.append("<tr><td>" + body.name +
+        "</td><td>" + body.start +
+        "</td><td>" + body.end +
+        "</td><td>" + body.project_manager +
+        "</td><td>" + body.status +
+        "</td></tr>");
+
+    renderProjectForm(body["@controls"].edit);
     $("input[name='name']").val(body.name);
     $("input[name='start']").val(body.start);
     $("input[name='end']").val(body.end);
     $("input[name='project_manager']").val(body.project_manager);
-    $("form input[type='submit']").before(
-        "<label>Status</label>" +
-        "<input type='text' name='status' value='" +
-        body.status + "' readonly>"
-    );
+    $("input[name='status']").val(body.status);
 }
 
 function renderProjects(body) {
-    console.log(body);
     $("div.navigation").empty();
     $("div.tablecontrols").empty();
     $(".resulttable thead").html(
@@ -170,9 +266,40 @@ function renderProjects(body) {
     body.items.forEach(function (item) {
         tbody.append(projectRow(item));
     });
+    getResource("http://localhost:5000/api/members/", renderMembers);
     renderProjectForm(body["@controls"]["promana:add-project"]);
 }
 
+function renderMembers(body) {
+    $("div.navigation").empty();
+    $("div.tablecontrols").empty();
+    $(".membertable thead").html(
+        "<tr><th>Name</th></tr>"
+    );
+    let tbody = $(".membertable tbody");
+    tbody.empty();
+    body.items.forEach(function (item) {
+        tbody.append(memberRow(item));
+    });
+    renderMemberForm(body["@controls"]["promana:add-member"]);
+}
+
+function renderProjectMembers(body) {
+    $(".membertable thead").html(
+        "<tr><th>Name</th></tr>"
+    );
+    let tbody = $(".membertable tbody");
+    tbody.empty();
+    body.items.forEach(function (item) {
+        tbody.append(memberRow(item));
+    });
+    console.log(body);
+    renderMemberForm(body["@controls"]["promana:add-member"]);
+}
+
+// from the Programmable Web Project example,
+// /api/sensors/ -> /api/projects/
+// renderSensors -> renderProjects
 $(document).ready(function () {
     getResource("http://localhost:5000/api/projects/", renderProjects);
 });
