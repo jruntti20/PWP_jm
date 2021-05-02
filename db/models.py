@@ -93,7 +93,7 @@ class Tasks(db.Model):
     '''status = db.Column(db.String(16),
                        db.CheckConstraint("status == 'not started' OR status == 'started' OR status == 'finished'"),
                        default="not started", nullable=False)'''
-    status = db.Column(db.Enum(status_type))
+    status = db.Column(db.Enum(status_type), default=status_type.NOT_STARTED)
     project = db.relationship("Project", back_populates="tasks")
     team = db.relationship("Teams", back_populates="team_tasks")
     phase = db.relationship("Phase", back_populates="task")
