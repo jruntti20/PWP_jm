@@ -1,5 +1,5 @@
 # PWP SPRING 2020
-# PROJECT NAME
+# Project management API
 # Group information
 * Student 1. Juha-Matti Runtti, jruntti20@student.oulu.fi
 * Student 2. Valtteri Ahonen, valtteri.ahonen@student.oulu.fi 
