@@ -66,6 +66,3 @@ class Teams(db.Model):
 
     team_members = db.relationship("Members", back_populates="membership")
     team_tasks = db.relationship("Tasks", back_populates="team")
-
-if __name__ == "__main__":
-    db.create_all()

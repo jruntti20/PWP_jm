@@ -56,6 +56,20 @@ function deleteMember(event, a) {
     });
 }
 
+function deletePhase(event, a) {
+    event.preventDefault();
+    let resource = $(a);
+    $.ajax({
+        url: resource.attr("href"),
+        method: "DELETE",
+        success: function () {
+            var i = a.parentNode.parentNode.rowIndex;
+            document.getElementById("phasetable").deleteRow(i);
+        },
+        error: renderError
+    });
+}
+
 // from the Programmable Web Project example
 function sendData(href, method, item, postProcessor) {
     console.log(item);
@@ -115,6 +129,27 @@ function memberRow(item) {
         "</td></tr>";
 }
 
+function phaseRow(item) {
+    let link = "<a href='" +
+        item["@controls"].self.href +
+        "' onClick='followLink(event, this, renderPhase)'>show</a>";
+    let deleteLink = "<a href='" +
+        item["@controls"].self.href +
+        "' onClick='deletePhase(event, this, renderPhases)'>delete</a>";
+    let dl = item.deadline;
+    if (dl != null) {
+        dl = dl.toString();
+    } else {
+        dl = "";
+    }
+    return "<tr><td>" + item.name +
+        "</td><td>" + dl +
+        "</td><td>" + item.status +
+        "</td><td>" + link +
+        "</td><td>" + deleteLink + 
+        "</td></tr>";
+}
+
 // from the Programmable Web Project example
 function followLink(event, a, renderer) {
     event.preventDefault();
@@ -127,6 +162,10 @@ function appendProjectRow(body) {
 
 function appendMemberRow(body) {
     $(".membertable tbody").append(memberRow(body));
+}
+
+function appendPhaseRow(body) {
+    $(".phasetable tbody").append(phaseRow(body));
 }
 
 // from the Programmable Web Project example
@@ -146,6 +185,14 @@ function getSubmittedMember(data, status, jqxhr) {
     }
 }
 
+function getSubmittedPhase(data, status, jqxhr) {
+    renderMsg("Succesful");
+    let href = jqxhr.getResponseHeader("Location");
+    if (href) {
+        getResource(href, appendPhaseRow);
+    }
+}
+
 function renderMemberForm(ctrl) {
     let form = $("<form>");
     let name = ctrl.schema.properties.name;
@@ -156,6 +203,34 @@ function renderMemberForm(ctrl) {
         "<input type='text' name='name1'>" + "</label>");
     form.append("<input type='submit' name='submit' value='Submit'>");
     $("div.memberform").html(form);
+}
+
+function renderPhaseForm(ctrl) {
+    let form = $("<form>");
+    let name = ctrl.schema.properties.name;
+    let deadline = ctrl.schema.properties.deadline;
+    let status = ctrl.schema.properties.status;
+    form.attr("action", ctrl.href);
+    form.attr("method", ctrl.method);
+    form.submit(submitPhase);
+    form.append("<label>" + name.description + "</br>" +
+        "<input type='text' name='name2'>" + "</label>");
+    form.append("<label>" + deadline.description + "</br>" +
+        "<input type='date' name='deadline'>" + "</label>");
+    form.append("<label>" + status.description + "</br>" +
+        "<select name='status2'>" +
+        "<option value='NOT_STARTED'>not started</option>" +
+        "<option value='STARTED'>started</option>" +
+        "<option value='FINISHED'>finished</option>" +
+        "</select></label></br></br>");
+    var submit_text = "";
+    if (ctrl.method == "POST") {
+        submit_text = "Submit";
+    } else {
+        submit_text = "Edit";
+    }
+    form.append("<input type='submit' name='submit' value='" + submit_text + "'>");
+    $("div.phaseform").html(form);
 }
 
 function renderProjectForm(ctrl) {
@@ -213,9 +288,27 @@ function submitProject(event) {
     if (data.end == "") {
         data.end = undefined;
     }
-    data.project_manager = $("input[name='manager']").val();
+    data.project_manager = $("input[name='project_manager']").val();
     data.status = $("select[name='status']").val();
     sendData(form.attr("action"), form.attr("method"), data, getSubmittedProject);
+}
+
+function submitPhase(event) {
+    event.preventDefault();
+
+    let data = {};
+    let form = $("div.phaseform form");
+    data.name = $("input[name='name2']").val();
+    if (data.name == "") {
+        alert("Name can not be empty!");
+        return false;
+    }
+    data.deadline = $("input[name='deadline']").val();
+    if (data.deadline == "") {
+        data.deadline = undefined;
+    }
+    data.status = $("select[name='status2']").val();
+    sendData(form.attr("action"), form.attr("method"), data, getSubmittedPhase);
 }
 
 function submitMember(event) {
@@ -233,11 +326,22 @@ function submitMember(event) {
 
 function renderProject(body) {
     getResource("/api/projects/" + body.name + "/members/", renderProjectMembers);
+    getResource("/api/projects/" + body.name + "/phases/", renderPhases);
     $("div.navigation").html(
         "<a href='" +
         body["@controls"].collection.href +
         "' onClick='followLink(event, this, renderProjects)'>collection</a>"
     );
+    $("div.phases-notification").empty();
+
+    $("#add-project").html("Edit project details");
+    $("#add-member").html("Add members to project");
+    $("#add-phase").html("Add new phase")
+    $("#phases").html("Project phases");
+
+    let phase = $(".phase");
+    phase.show();
+
     let tbody = $(".resulttable tbody");
     tbody.empty();
     tbody.append("<tr><td>" + body.name +
@@ -255,12 +359,41 @@ function renderProject(body) {
     $("input[name='status']").val(body.status);
 }
 
+function renderPhase(body) {
+    $("div.phases-notification").html(
+        "<a href='" +
+        body["@controls"].up.href +
+        "' onClick='followLink(event, this, renderProject)'>All phases</a>"
+    );
+    $("#add-phase").html("Edit phase");
+    $("#phases").html("Phase " + body.name);
+
+    let phase = $(".phase");
+    phase.show();
+
+    let tbody = $(".phasetable tbody");
+    tbody.empty();
+    tbody.append("<tr><td>" + body.name +
+        "</td><td>" + body.deadline +
+        "</td><td>" + body.status +
+        "</td></tr>");
+
+    renderPhaseForm(body["@controls"].edit);
+    $("input[name='name2']").val(body.name);
+    $("input[name='deadline']").val(body.deadline);
+    $("input[name='status2']").val(body.status);
+}
+
 function renderProjects(body) {
     $("div.navigation").empty();
     $("div.tablecontrols").empty();
     $(".resulttable thead").html(
         "<tr><th>Name</th><th>Start date</th><th>End date</th><th>Project manager</th><th>Status</th></tr>"
     );
+    $("#add-project").html("Add new project");
+    $("#add-member").html("Add new member");
+    let phase = $(".phase");
+    phase.hide();
     let tbody = $(".resulttable tbody");
     tbody.empty();
     body.items.forEach(function (item) {
@@ -268,6 +401,18 @@ function renderProjects(body) {
     });
     getResource("http://localhost:5000/api/members/", renderMembers);
     renderProjectForm(body["@controls"]["promana:add-project"]);
+}
+
+function renderPhases(body) {
+    $(".phasetable thead").html(
+        "<tr><th>Name</th><th>Deadline</th><th>Status</th></tr>"
+    );
+    let tbody = $(".phasetable tbody");
+    tbody.empty();
+    body.items.forEach(function (item) {
+        tbody.append(phaseRow(item));
+    });
+    renderPhaseForm(body["@controls"]["promana:add-phase"]);
 }
 
 function renderMembers(body) {

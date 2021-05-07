@@ -859,8 +859,8 @@ class TaskMemberItem(Resource):
 class PhaseCollection(Resource):
 
     def get(self, project):
-
-        db_phases = Phase.query.all()
+        db_project = Project.query.filter_by(name=project).first()
+        db_phases = Phase.query.filter_by(project_id=db_project.id)
 
         if db_phases is None:
             return Response(status=501)
@@ -879,15 +879,15 @@ class PhaseCollection(Resource):
             else:
                 phase_task = phase.task
 
-            if phase.deadline is None:
-                deadline = phase.deadline
-            else:
-                deadline = phase.deadline.strftime("%Y-%m-%d")
+            try:
+                deadline=phase.deadline.strftime("%Y-%m-%d")
+            except AttributeError:
+                deadline = None
 
             item = PhaseBuilder(
                 name = phase.name,
-                deadline = str(phase.deadline),
-                status = str(phase.status)
+                deadline = deadline,
+                status = str(phase.status.value)
                 )
             item.add_control("self", api.url_for(PhaseItem, project=project, phase=phase.name))
             body["items"].append(item)
@@ -936,19 +936,20 @@ class PhaseCollection(Resource):
 
 class PhaseItem(Resource):
     def get(self, project, phase):
-        """
-        Show existing phase.
-        """
         db_phase = Phase.query.filter_by(name=phase).first()
         if db_phase == None:
             return create_error_response(404, "Not found", f"Phase with name {phase} not found.")
 
-        if db_phase.deadline is None:
-            db_phase.deadline = datetime.datetime.strftime(db_phase.deadline, "%Y-%m-%d")
+        #if db_phase.deadline is None:
+        #    db_phase.deadline = datetime.datetime.strftime(db_phase.deadline, "%Y-%m-%d")
+        try:
+            deadline=db_phase.deadline.strftime("%Y-%m-%d")
+        except AttributeError:
+            deadline = None
 
         body = PhaseBuilder(
             name=db_phase.name,
-            deadline=str(db_phase.deadline),
+            deadline=deadline,
             status=str(db_phase.status.value)
         )
         body.add_namespace("promana", LINK_RELATIONS_URL)
@@ -968,6 +969,7 @@ class PhaseItem(Resource):
 
         if not request.json:
             return create_error_response(415, "Unsupported media type", "Requests must be JSON")
+        
         try:
             validate(request.json, PhaseBuilder.phase_schema())
         except ValidationError as e:
@@ -991,24 +993,26 @@ class PhaseItem(Resource):
         except KeyError:
             pass
 
+        if db_phase.deadline != None:
+            db_phase.deadline = datetime.datetime.strptime(db_phase.deadline, "%Y-%m-%d")
+
         try:
             db.session.commit()
         except IntegrityError:
             return create_error_response(409, "Already exists", "Phase with name '{}' already exists.".format(request.json["name"]))
 
         return Response(status=204, headers={"location":api.url_for(PhaseItem, project=project, phase=db_phase.name)})
-
     # delete phase
     def delete(self, project, phase):
         """
-        delete existing member
+        delete existing phase
         """
-        db_phase = Phase.query.filter_by(name=phase).first()
-        if db_phase is None:
-            return create_error_response(404, "Not found", "No phase was found with the name {}".format(phase))
-
-        db.session.delete(db_phase)
-        db.session.commit()
+        db_phases = Phase.query.filter_by(name=phase)
+        db_project = Project.query.filter_by(name=project).first()
+        for db_phase in db_phases:
+            if db_phase.project == db_project:
+                db.session.delete(db_phase)
+                db.session.commit()
         
         return Response(status=204)
 
