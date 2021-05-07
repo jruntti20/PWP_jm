@@ -913,10 +913,18 @@ class PhaseCollection(Resource):
 
         new_phase = Phase(
             name=request.json["name"],
-            deadline=request.json["deadline"],
             project=project,
-            status=status_type[request.json["status"]]
             )
+
+        try:
+            new_phase.deadline = datetime.datetime.strptime(request.json["deadline"], "%Y-%m-%d")
+        except KeyError:
+            pass
+
+        try:
+            new_phase.status = status_type[request.json["status"]]
+        except KeyError:
+            pass
 
         if new_phase.deadline != None:
             new_phase.deadline = datetime.datetime.strptime(new_phase.deadline, "%Y-%m-%d")
@@ -992,9 +1000,6 @@ class PhaseItem(Resource):
             db_phase.deadline = datetime.datetime.strptime(request.json["deadline"], "%Y-%m-%d")
         except KeyError:
             pass
-
-        if db_phase.deadline != None:
-            db_phase.deadline = datetime.datetime.strptime(db_phase.deadline, "%Y-%m-%d")
 
         try:
             db.session.commit()
@@ -1139,6 +1144,7 @@ class TaskItem(Resource):
             task_end=str(db_task.end),
             status=str(db_task.status.value)
         )
+
         body.add_namespace("promana", LINK_RELATIONS_URL)
         body.add_control("self", api.url_for(TaskItem, project=project, phase=phase, task=task))
         body.add_control("collection", api.url_for(TaskCollection, project=project, phase=phase))
