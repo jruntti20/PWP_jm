@@ -968,8 +968,8 @@ class PhaseItem(Resource):
 
         if not request.json:
             return create_error_response(415, "Unsupported media type", "Requests must be JSON")
-        
-        validate(request.json, PhaseBuilder.phase_schema())
+        try:
+            validate(request.json, PhaseBuilder.phase_schema())
         except ValidationError as e:
             return create_error_response(400, "Invalid JSON document", str(e))
 
