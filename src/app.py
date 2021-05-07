@@ -1203,3 +1203,6 @@ def admin_site():
     function for admin site
     """
     return app.send_static_file("html/admin.html")
+
+if __name__ == "__main__":
+    db.create_all()
