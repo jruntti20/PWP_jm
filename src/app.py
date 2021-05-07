@@ -936,6 +936,9 @@ class PhaseCollection(Resource):
 
 class PhaseItem(Resource):
     def get(self, project, phase):
+        """
+        Show existing phase.
+        """
         db_phase = Phase.query.filter_by(name=phase).first()
         if db_phase == None:
             return create_error_response(404, "Not found", f"Phase with name {phase} not found.")
@@ -957,12 +960,48 @@ class PhaseItem(Resource):
 
         return Response(json.dumps(body), 200, mimetype=MASON)
 
-    def put(self, project, phase, task):
+    def put(self, project, phase):
+        """
+        Modify existing phase.
+        """
         db.session.rollback()
+
         if not request.json:
-            return create_error_response(415, "Unsupported media type",
-                                         "Requests must be JSON"
-                                         )
+            return create_error_response(415, "Unsupported media type", "Requests must be JSON")
+        
+        validate(request.json, PhaseBuilder.phase_schema())
+        except ValidationError as e:
+            return create_error_response(400, "Invalid JSON document", str(e))
+
+        db_phase = Phase.query.filter_by(name=phase).first()
+        if db_phase is None:
+            return create_error_response(404, "Not found", "No phase was found with the name {}".format(phase))
+
+        db_phase.name = request.json["name"]
+        db_phase.status = request.json["status"]
+        db_phase.deadline = request.json["deadline"]
+
+        try:
+            db.session.commit()
+        except IntegrityError:
+            return create_error_response(409, "Already exists", "Phase with name '{}' already exists.".format(request.json["name"]))
+
+        return Response(status=204, headers={"location":api.url_for(PhaseItem, project=project, phase=db_phase.name)})
+
+    # delete phase
+    def delete(self, project, phase):
+        """
+        delete existing member
+        """
+        db_phase = Phase.query.filter_by(name=phase).first()
+        if db_phase is None:
+            return create_error_response(404, "Not found", "No phase was found with the name {}".format(phase))
+
+        db.session.delete(db_phase)
+        db.session.commit()
+        
+        return Response(status=204)
+
 
 class TaskCollection(Resource):
 
@@ -1053,11 +1092,10 @@ class TaskCollection(Resource):
                 "Project with name '{}' already exists.".format(request.json["name"])
             )
 
-        return Response(status=201, headers={"location": api.url_for(TaskItem,
-                                                                     project=new_task.project,
-                                                                     phase=new_task.phase,
-                                                                     task=new_task.name
-                                                                     )})
+        return Response(
+            status=201,
+            headers={"location": api.url_for(TaskItem, project=new_task.project, phase=new_task.phase,task=new_task.name)}
+            )
 
 class TaskItem(Resource):
     def get(self, project, phase, task):
@@ -1088,15 +1126,50 @@ class TaskItem(Resource):
         return Response(json.dumps(body), 200, mimetype=MASON)
 
     def put(self, project, phase, task):
+        """
+        Modify existing task.
+        """
         db.session.rollback()
+
         if not request.json:
-            return create_error_response(415, "Unsupported media type",
-                                         "Requests must be JSON"
-                                         )
+            return create_error_response(415, "Unsupported media type", "Requests must be JSON")
+        
+        validate(request.json, TaskBuilder.task_schema())
+        except ValidationError as e:
+            return create_error_response(400, "Invalid JSON document", str(e))
 
-    def delete(self, project, phase, task):
-        pass
+        db_task = Tasks.query.filter_by(name=task).first()
+        if db_task is None:
+            return create_error_response(404, "Not found", "No phase was found with the name {}".format(task))
 
+        db_task.name = request.json["task_name"]
+        if db_task.start is not None:
+            db_task.start = request.json["task_start"]
+        if db_task.end is not None:
+            db_task.end = request.json["task_end"]
+        if db_task.status is not None:
+            db_task.status = request.json["task_status"]
+
+        try:
+            db.session.commit()
+        except IntegrityError:
+            return create_error_response(409, "Already exists", "Phase with name '{}' already exists.".format(request.json["name"]))
+
+        return Response(status=204, headers={"location":api.url_for(PhaseItem, project=project, phase=db_phase.name)})
+
+    # delete phase
+    def delete(self, project, phase):
+        """
+        delete existing member
+        """
+        db_phase = Phase.query.filter_by(name=phase).first()
+        if db_phase is None:
+            return create_error_response(404, "Not found", "No phase was found with the name {}".format(phase))
+
+        db.session.delete(db_phase)
+        db.session.commit()
+        
+        return Response(status=204)
 
 
 api.add_resource(ProjectCollection, "/api/projects/")
