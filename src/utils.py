@@ -1,8 +1,11 @@
+<<<<<<< HEAD
+=======
 from flask import request, Response
 import json
 
 LINK_RELATIONS_URL = "/promana/link-relations/"
 MASON = "application/vnd.mason+json"
+>>>>>>> master
 
 class MasonBuilder(dict):
     """
@@ -66,6 +69,9 @@ class MasonBuilder(dict):
             self["@controls"] = {}
 
         self["@controls"][ctrl_name] = kwargs
+<<<<<<< HEAD
+        self["@controls"][ctrl_name]["href"] = href
+=======
         self["@controls"][ctrl_name]["href"] = href
 
 def create_error_response(status_code, title, message=None):
@@ -73,3 +79,4 @@ def create_error_response(status_code, title, message=None):
     body = MasonBuilder(resource_url=resource_url)
     body.add_error(title, message)
     return Response(json.dumps(body), status_code, mimetype=MASON)
+>>>>>>> master

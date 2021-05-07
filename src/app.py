@@ -166,6 +166,366 @@ class MemberBuilder(MasonBuilder):
             self.add_control("promana:delete",
                              f"/api/projects/{project}/phases/{phase}/tasks/{task}/members/{member}/",
                              method="DELETE")
+###
+class TaskBuilder(MasonBuilder):
+    @staticmethod
+    def task_schema():
+        schema = {
+            "type": "object",
+            "required": ["task_name"]
+            }
+        props = schema["properties"] = {}
+        props["name"] = {
+            "description": "Name of the member",
+            "type": "string"
+            }
+        props["task_start"] = {
+            "description": "Start date of the task",
+            "type": "string",
+            "pattern": "^[0-9]{4}-[01][0-9]-[0-3][0-9]$"
+        }
+        props["task_end"] = {
+            "description": "End date of the task",
+            "type": "string",
+            "pattern": "^[0-9]{4}-[01][0-9]-[0-3][0-9]$"
+        }
+        props["status"] = {
+            "description": "Task status",
+            "type": "string",
+            "enum": ["NOT_STARTED", "STARTED", "FINISHED"]
+        }
+        return schema
+
+
+    def add_control_add_task(self, project, phase="WHOLE_PROJECT"):
+        self.add_control("promana:add-task",
+                             f"/api/projects/{project}/phases/{phase}/tasks/",
+                             method="POST",
+                             encoding="json",
+                             title="Add new task to a project phase",
+                             schema=self.task_schema())
+    
+    def add_control_edit_task(self, project, phase="WHOLE_PROJECT", task):
+        self.add_control("edit",
+                             f"/api/projects/{project}/phases/{phase}/tasks/{task}/",
+                             method="PUT",
+                             encoding="json",
+                             title="Edit project task",
+                             schema=self.task_schema())
+    
+    def add_control_task_members(self, project, phase, task):
+        self.add_control("task-members",
+                         f"/api/projects/{project}/phases/{phase}/tasks/{task}/members")
+    
+    def add_control_task_phase(self, project, phase):
+        self.add_control("task-phase",
+                         f"/api/projects/{project}/phases/{phase}/")
+    
+    def add_control_delete_task(self, project, phase="WHOLE_PROJECT", task):
+        self.add_control("promana:delete",
+                         f"/api/projects/{project}/phases/{phase}/tasks/{task}/members/{member}/",
+                         method="DELETE")
+
+class PhaseBuilder(MasonBuilder):
+    @staticmethod
+    def task_schema():
+        schema = {
+            "type": "object",
+            "required": ["name", "status", "deadline"]
+            }
+        props = schema["properties"] = {}
+        props["name"] = {
+            "description": "Name of the phase",
+            "type": "string"
+            }
+        props["phase"] = {
+            "description": "Phase of the task",
+            "type": "string",
+            "enum": ["NOT_STARTED", "STARTED", "FINISHED"]
+        }
+        props["task_start"] = {
+            "description": "Start date of the task",
+            "type": "string",
+            "pattern": "^[0-9]{4}-[01][0-9]-[0-3][0-9]$"
+        }
+        props["task_end"] = {
+            "description": "End date of the task",
+            "type": "string",
+            "pattern": "^[0-9]{4}-[01][0-9]-[0-3][0-9]$"
+        }
+        return schema
+
+
+class TaskCollection(Resource):
+
+    def get(self, project, phase):
+
+        db_tasks = Task.query.all()
+
+        if db_tasks = None:
+            return Response(status=501)
+
+        body = TaskBuilder()
+        body.add_namespace("promana", LINK_RELATIONS_URL)
+        body.add_control("self", api.url_for(TaskCollection))
+        body.add_control_add_task()
+        body.add_control_up("self", api.url_for(PhaseItem)
+        body["items"] = []
+
+        for task in db_tasks:
+
+            if task.phase = None:
+                phase = task.phase
+            else:_
+                task_phase = task.phase.name
+            if task.task_start = None:
+                task_start = task.task_start
+            else:
+                task_start = task.start.strftime("%Y-%m-%d")
+            if task.task_end = None:
+                task_end = task.task_end
+            else:
+                task_end = task.task_end.strftime("%Y-%m-%d")
+
+            item = TaskBuilder(
+                name = task.name,
+                phase=phase,
+                task_start=task_start,
+                task_end=task_end,
+                status = task.status,
+                )
+            item.add_control("self", api.url_for(TaskItem, project=project.name, phase=phase.name,
+                                                 task=task.name))
+            body["items"].append(item)
+
+        return Response(json.dumps(body), 200)
+
+    def post(self, project, phase):
+
+        db.session.rollback()
+        if not request.json:
+            return create_error_response(415, "Unsupported media type",
+                                         "Requests must be JSON"
+                                         )
+        try:
+            validate(request.json, TaskBuilder.task_schema())
+        except ValidationError as e:
+            return create_error_response(400, "Invalid JSON document", str(e))
+
+        task_end = None 
+
+        try:
+            project = Project.query.filter_by(project.name=project).first()
+        except KeyError:
+            pass
+
+        try:
+            phase = Phase.query.filter_by(phase.name=phase).first()
+        except KeyError:
+            pass
+
+        new_task = Tasks(
+            name=request.json["name"],
+            project=project,
+            phase=phase,
+            task_start=request.json["task_start"],
+            task_end=request.json["task_end"],
+            status=status_type[request.json["status"]]
+            )
+
+        try:
+            task_end = request.json["task_end"]
+        except KeyError:
+            pass
+        new_task.project = project
+        new_task.phase = phase
+        if task_start != None:
+            new_task.task_start=datetime.datetime.strptime(task_start, "%Y-%m-%d")
+        if task_end != None:
+            new_task.task_end=datetime.datetime.strptime(task_end, "%Y-%m-%d")
+        try:
+            db.session.add(new_task)
+            db.session.commit()
+        except IntegrityError:
+            return create_error_response(409, "Already exists",
+                "Project with name '{}' already exists.".format(request.json["name"])
+            )
+
+        return Response(status=201, headers={"location": api.url_for(TaskItem,
+                                                                             project=new_task.project,
+                                                                             phase=new_task.phase,
+                                                                             task=new_task.name
+                                                                             )})
+
+class TaskItem(Resource):
+    def get(self, project, phase, task):
+        db_task = Task.query.filter_by(name=task).first()
+        if db_task == None:
+            return create_error_response(404, "Not found", f"Task with name {task} not found.")
+
+        if db_task.task_start != None:
+            db_task.task_start=datetime.datetime.strftime(db_task.task_start, "%Y-%m-%d")
+
+        if db_task.task_end != None:
+            db_task.task_end=datetime.datetime.strftime(db_task.task_end, "%Y-%m-%d")
+
+        body = TaskBuilder(
+            name=db_task.name,
+            phase=db_task.phase,
+            project=db_task.project  # tarvitaanko property?
+            task_start=str(db_task.start),
+            task_end=str(db_task.end),
+            status=str(db_project.status.value)
+        )
+        body.add_namespace("promana", LINK_RELATIONS_URL)
+        body.add_control("self", api.url_for(TaskItem, task=task))
+        body.add_control("collection", api.url_for(TaskCollection))
+        body.add_control_task_phase(project, phase)
+        body.add_control_task_members(project, phase, task)
+        body.add_control_edit_task(project, phase, task)
+        body.add_control_delete_task(project, phase, task)
+
+        return Response(json.dumps(body), 200)
+
+    def put(self, project, phase, task):
+        db.session.rollback()
+        if not request.json:
+            return create_error_response(415, "Unsupported media type",
+                                         "Requests must be JSON"
+                                         )
+
+    def delete(self, project, phase, task):
+        pass
+
+
+class PhaseCollection(Resource):
+    pass
+
+class PhaseItem(Resource):
+    pass
+
+class TaskBuilder(MasonBuilder):
+    @staticmethod
+    def task_schema():
+        schema = {
+            "type": "object",
+            "required": ["task_name"]
+            }
+        props = schema["properties"] = {}
+        props["task_name"] = {
+            "description": "Name of the member",
+            "type": "string"
+            }
+        props["task_start"] = {
+            "description": "Start date of the task",
+            "type": "string",
+            "pattern": "^[0-9]{4}-[01][0-9]-[0-3][0-9]$"
+        }
+        props["task_end"] = {
+            "description": "End date of the task",
+            "type": "string",
+            "pattern": "^[0-9]{4}-[01][0-9]-[0-3][0-9]$"
+        }
+        props["task_status"] = {
+            "description": "Task status",
+            "type": "string",
+            "enum": ["NOT_STARTED", "STARTED", "FINISHED"]
+        }
+        return schema
+
+
+    def add_control_add_task(self, project, phase="WHOLE_PROJECT"):
+        self.add_control("promana:add-task",
+                             f"/api/projects/{project}/phases/{phase}/tasks/",
+                             method="POST",
+                             encoding="json",
+                             title="Add new task to a project phase",
+                             schema=self.task_schema())
+    
+    def add_control_edit_task(self, project, phase="WHOLE_PROJECT", task):
+        self.add_control("edit",
+                             f"/api/projects/{project}/phases/{phase}/tasks/{task}/",
+                             method="PUT",
+                             encoding="json",
+                             title="Edit project task",
+                             schema=self.task_schema())
+    
+    def add_control_task_members(self, project, phase, task):
+        self.add_control("task-members",
+                         f"/api/projects/{project}/phases/{phase}/tasks/{task}/members")
+    
+    def add_control_task_phase(self, project, phase):
+        self.add_control("task-phase",
+                         f"/api/projects/{project}/phases/{phase}/")
+    
+    def add_control_delete_task(self, project, phase="WHOLE_PROJECT", task):
+        self.add_control("promana:delete",
+                         f"/api/projects/{project}/phases/{phase}/tasks/{task}/members/{member}/",
+                         method="DELETE")
+
+class PhaseBuilder(MasonBuilder):
+    @staticmethod
+    def phase_schema():
+        schema = {
+            "type": "object",
+            "required": ["name", "status", "deadline"]
+            }
+        props = schema["properties"] = {}
+        props["name"] = {
+            "description": "Name of the phase",
+            "type": "string"
+            }
+        props["status"] = {
+            "description": "Status of the task",
+            "type": "string",
+            "enum": ["NOT_STARTED", "STARTED", "FINISHED"]
+        }
+        props["deadline"] = {
+            "description": "Deadline date of the phase",
+            "type": "string",
+            "pattern": "^[0-9]{4}-[01][0-9]-[0-3][0-9]$"
+        }
+        return schema
+
+    def add_control_add_phase(self, project):
+        self.add_control("promana:add-phase",
+                             f"/api/projects/{project}/phases/",
+                             method="POST",
+                             encoding="json",
+                             title="Add new phase to a project",
+                             schema=self.phase_schema())
+
+    def add_control_up_project(self, project):
+        self.add_control("up",
+                         f"/api/projects/{project}/"
+                         )
+
+    def add_control_phase_tasks(self, project, phase="WHOLE_PROJECT"):
+    self.add_control("phase-tasks",
+                     f"/api/projects/{project}/phases/{phase}/tasks/",
+                     title="Show all tasks in a selected project phase",
+                     encoding="json"
+                     )
+
+    def add_control_phase_task(self, project, phase="WHOLE_PROJECT", task):
+    self.add_control("phase-tasks",
+                     f"/api/projects/{project}/phases/{phase}/tasks/{task}/",
+                     title="Show a selected task in a project phase",
+                     encoding="json"
+                     )
+    def add_control_edit_phase(self, project, phase="WHOLE_PROJECT"):
+        self.add_control("edit",
+                             f"/api/projects/{project}/phases/{phase}/",
+                             method="PUT",
+                             encoding="json",
+                             title="Edit project phase",
+                             schema=self.task_schema()
+                         )
+
+    def add_control_delete_phase(self, project, phase="WHOLE_PROJECT"):
+        self.add_control("promana:delete",
+                         f"/api/projects/{project}/phases/{phase}/",
+                         method="DELETE")
 
 class PhaseBuilder(MasonBuilder):
     @staticmethod
@@ -856,6 +1216,7 @@ class TaskMemberItem(Resource):
         
         return Response(status=204)
 
+<<<<<<< HEAD
 class PhaseCollection(Resource):
 
     def get(self, project):
@@ -916,10 +1277,75 @@ class PhaseCollection(Resource):
 
         try:
             new_phase.deadline = datetime.datetime.strptime(request.json["deadline"], "%Y-%m-%d")
+=======
+class TaskCollection(Resource):
+
+    def get(self, project, phase):
+
+        db_tasks = Task.query.all()
+
+        if db_tasks = None:
+            return Response(status=501)
+
+        body = TaskBuilder()
+        body.add_namespace("promana", LINK_RELATIONS_URL)
+        body.add_control("self", api.url_for(TaskCollection))
+        body.add_control_add_task()
+        body.add_control_up("self", api.url_for(PhaseItem)
+        body["items"] = []
+
+        for task in db_tasks:
+
+            if task.phase = None:
+                task_phase = task.phase
+            else:_
+                task_phase = task.phase.name
+
+            if task.task_start = None:
+                task_start = task.start
+            else:
+                task_start = task.start.strftime("%Y-%m-%d")
+
+            if task.task_end = None:
+                task_end = task.end
+            else:
+                task_end = task.end.strftime("%Y-%m-%d")
+
+            item = TaskBuilder(
+                task_name = task.name,
+                task_phase=task_phase
+                task_start=task_start
+                task_end=task_end
+                task_status = task.status
+                )
+            item.add_control("self", api.url_for(TaskItem, project=project.name, phase=phase.name,
+                                                 task=task.name))
+            body["items"].append(item)
+
+        return Response(json.dumps(body), 200)
+
+    def post(self, project, phase):
+
+        db.session.rollback()
+        if not request.json:
+            return create_error_response(415, "Unsupported media type",
+                                         "Requests must be JSON"
+                                         )
+        try:
+            validate(request.json, TaskBuilder.task_schema())
+        except ValidationError as e:
+            return create_error_response(400, "Invalid JSON document", str(e))
+
+        task_end = None 
+
+        try:
+            project = Project.query.filter_by(project.name=project).first()
+>>>>>>> 75c23dada82257ddfef7229b031e1ed153b43664
         except KeyError:
             pass
 
         try:
+<<<<<<< HEAD
             new_phase.status = status_type[request.json["status"]]
         except KeyError:
             pass
@@ -1072,10 +1498,132 @@ class TaskCollection(Resource):
             return create_error_response(415, "Unsupported media type", "Requests must be JSON")
         try:
             validate(request.json, TaskBuilder.task_schema())
+=======
+            phase = Phase.query.filter_by(phase.name=phase).first()
+        except KeyError:
+            pass
+
+        new_task = Tasks(
+            name=request.json["name"],
+            project=project,
+            phase=phase,
+            task_start=request.json["task_start"],
+            task_end=request.json["task_end"],
+            status=status_type[request.json["status"]]
+            )
+
+        if task_start != None:
+            new_task.task_start=datetime.datetime.strptime(task_start, "%Y-%m-%d")
+        if task_end != None:
+            new_task.task_end=datetime.datetime.strptime(task_end, "%Y-%m-%d")
+        try:
+            db.session.add(new_task)
+            db.session.commit()
+        except IntegrityError:
+            return create_error_response(409, "Already exists",
+                "Project with name '{}' already exists.".format(request.json["name"])
+            )
+
+        return Response(status=201, headers={"location": api.url_for(TaskItem,
+                                                                             project=new_task.project,
+                                                                             phase=new_task.phase,
+                                                                             task=new_task.name
+                                                                             )})
+
+class TaskItem(Resource):
+    def get(self, project, phase, task):
+        db_task = Task.query.filter_by(name=task).first()
+        if db_task == None:
+            return create_error_response(404, "Not found", f"Task with name {task} not found.")
+
+        if db_task.task_start != None:
+            db_task.task_start=datetime.datetime.strftime(db_task.task_start, "%Y-%m-%d")
+
+        if db_task.task_end != None:
+            db_task.task_end=datetime.datetime.strftime(db_task.task_end, "%Y-%m-%d")
+
+        body = TaskBuilder(
+            name=db_task.name,
+            phase=db_task.phase,
+            project=db_task.project  # tarvitaanko property?
+            task_start=str(db_task.start),
+            task_end=str(db_task.end),
+            status=str(db_project.status.value)
+        )
+        body.add_namespace("promana", LINK_RELATIONS_URL)
+        body.add_control("self", api.url_for(TaskItem, task=task))
+        body.add_control("collection", api.url_for(TaskCollection))
+        body.add_control_task_phase(project, phase)
+        body.add_control_task_members(project, phase, task)
+        body.add_control_edit_task(project, phase, task)
+        body.add_control_delete_task(project, phase, task)
+
+        return Response(json.dumps(body), 200)
+
+    def put(self, project, phase, task):
+        db.session.rollback()
+        if not request.json:
+            return create_error_response(415, "Unsupported media type",
+                                         "Requests must be JSON"
+                                         )
+
+    def delete(self, project, phase, task):
+        pass
+
+
+class PhaseCollection(Resource):
+
+    def get(self, project):
+
+        db_phases = Phase.query.all()
+
+        if db_phases = None:
+            return Response(status=501)
+
+        body = PhaseBuilder()
+        body.add_namespace("promana", LINK_RELATIONS_URL)
+        body.add_control("self", api.url_for(PhaseCollection))
+        body.add_control_add_phase()
+        body.add_control_up("self", api.url_for(ProjectItem)
+        body["items"] = []
+
+        for phase in db_phases:
+
+            if phase.task = None:
+                phase_task = phase.task
+            else:_
+                phase_task = phase.task.name
+
+            if phase.deadline = None:
+                deadline = phase.deadline
+            else:
+                deadline = phase.deadline.strftime("%Y-%m-%d")
+
+            item = PhaseBuilder(
+                name = phase.name,
+                deadline=phase.deadline,
+                status = phase.status,
+                )
+            item.add_control("self", api.url_for(PhaseItem, project=project.name, task=task.name))
+            body["items"].append(item)
+
+        return Response(json.dumps(body), 200)
+
+   def post(self, project):
+
+        db.session.rollback()
+        if not request.json:
+            return create_error_response(415, "Unsupported media type",
+                                         "Requests must be JSON"
+                                         )
+        try:
+            validate(request.json, PhaseBuilder.phase_schema())
+>>>>>>> 75c23dada82257ddfef7229b031e1ed153b43664
         except ValidationError as e:
             return create_error_response(400, "Invalid JSON document", str(e))
 
         try:
+<<<<<<< HEAD
             project = Project.query.filter_by(name=project).first()
         except KeyError:
             pass
@@ -1206,6 +1754,70 @@ class TaskItem(Resource):
         db.session.commit()
         
         return Response(status=204)
+=======
+            project = Project.query.filter_by(project.name=project).first()
+        except KeyError:
+            pass
+
+        new_phase = Phase(
+            name=request.json["name"],
+            deadline=request.json["deadline"],
+            project=project,
+            status=status_type[request.json["status"]]
+            )
+
+        if new_phase.deadline != None:
+            new_phase.deadline = datetime.datetime.strptime(new_phase.deadline, "%Y-%m-%d")
+        try:
+            db.session.add(new_phase)
+            db.session.commit()
+        except IntegrityError:
+            return create_error_response(409, "Already exists",
+                "Phase with name '{}' already exists.".format(request.json["name"])
+            )
+
+        return Response(status=201, headers={"location": api.url_for(PhaseItem,
+                                                                     project=new_task.project,
+                                                                     name=new_phase.name,
+                                                                     )})
+
+
+class PhaseItem(Resource):
+    def get(self, project, phase):
+        db_phase = Phases.query.filter_by(name=phase).first()
+        if db_phase == None:
+            return create_error_response(404, "Not found", f"Phase with name {phase} not found.")
+
+        if db_phase.deadline = None:
+            db_phase.deadline = datetime.datetime.strftime(db_phase.deadline, "%Y-%m-%d")
+
+        body = PhaseBuilder(
+            name=db_task.name,
+            phase=db_task.phase,
+            project=db_task.project  # tarvitaanko property?
+            deadline=str(db_phase.deadline),
+            status=str(db_phase.status.value)
+        )
+        body.add_namespace("promana", LINK_RELATIONS_URL)
+        body.add_control("self", api.url_for(PhaseItem, project=project, phase=phase))
+        body.add_control("collection", api.url_for(PhaseCollection))
+        body.add_control_up_project(project, phase, task)
+        body.add_control_edit_phase(project, phase, task)
+        body.add_control_delete_phase(project, phase, task)
+
+        return Response(json.dumps(body), 200)
+
+    def put(self, project, phase, task):
+        db.session.rollback()
+        if not request.json:
+            return create_error_response(415, "Unsupported media type",
+                                         "Requests must be JSON"
+                                         )
+
+
+    def delete(self, project, phase, task):
+        pass
+>>>>>>> 75c23dada82257ddfef7229b031e1ed153b43664
 
 
 api.add_resource(ProjectCollection, "/api/projects/")
