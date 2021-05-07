@@ -172,7 +172,7 @@ class PhaseBuilder(MasonBuilder):
     def phase_schema():
         schema = {
             "type": "object",
-            "required": ["name", "status", "deadline"]
+            "required": ["name"]
             }
         props = schema["properties"] = {}
         props["name"] = {
@@ -977,9 +977,19 @@ class PhaseItem(Resource):
         if db_phase is None:
             return create_error_response(404, "Not found", "No phase was found with the name {}".format(phase))
 
-        db_phase.name = request.json["name"]
-        db_phase.status = request.json["status"]
-        db_phase.deadline = request.json["deadline"]
+        try:
+            db_phase.name = request.json["name"]
+        except KeyError:
+            pass       
+        try:
+            db_phase.status = request.json["status"]
+        except KeyError:
+            pass
+
+        try:
+            db_phase.deadline = datetime.datetime.strptime(request.json["deadline"], "%Y-%m-%d")
+        except KeyError:
+            pass
 
         try:
             db.session.commit()
@@ -1053,9 +1063,7 @@ class TaskCollection(Resource):
 
         db.session.rollback()
         if not request.json:
-            return create_error_response(415, "Unsupported media type",
-                                         "Requests must be JSON"
-                                         )
+            return create_error_response(415, "Unsupported media type", "Requests must be JSON")
         try:
             validate(request.json, TaskBuilder.task_schema())
         except ValidationError as e:
@@ -1075,10 +1083,22 @@ class TaskCollection(Resource):
             name=request.json["task_name"],
             project=project,
             phase=phase,
-            start=request.json["task_start"],
-            end=request.json["task_end"],
-            status=status_type[request.json["status"]]
+
             )
+        try:
+            new_task.start=request.json["task_start"]
+        except KeyError as e:
+            pass
+        
+        try:
+            new_task.end = request.json["task_end"]
+        except KeyError:
+            pass
+
+        try:
+            new_task.status = request.json["task_status"]
+        except KeyError:
+            pass
 
         if new_task.start != None:
             new_task.start=datetime.datetime.strptime(new_task.start, "%Y-%m-%d")
@@ -1089,7 +1109,7 @@ class TaskCollection(Resource):
             db.session.commit()
         except IntegrityError:
             return create_error_response(409, "Already exists",
-                "Project with name '{}' already exists.".format(request.json["name"])
+                "Project with name '{}' already exists.".format(request.json["task_name"])
             )
 
         return Response(
@@ -1143,30 +1163,39 @@ class TaskItem(Resource):
             return create_error_response(404, "Not found", "No phase was found with the name {}".format(task))
 
         db_task.name = request.json["task_name"]
-        if db_task.start is not None:
-            db_task.start = request.json["task_start"]
-        if db_task.end is not None:
-            db_task.end = request.json["task_end"]
-        if db_task.status is not None:
+
+        try:
+            db_task.start = datetime.datetime.strptime(request.json["task_start"], "%Y-%m-%d")
+        except KeyError:
+            pass
+
+        try:
+            db_task.end = datetime.datetime.strptime(request.json["task_end"], "%Y-%m-%d")
+        except KeyError:
+            pass
+
+        try:
             db_task.status = request.json["task_status"]
+        except KeyError:
+            pass
 
         try:
             db.session.commit()
         except IntegrityError:
             return create_error_response(409, "Already exists", "Phase with name '{}' already exists.".format(request.json["name"]))
 
-        return Response(status=204, headers={"location":api.url_for(PhaseItem, project=project, phase=db_phase.name)})
+        return Response(status=204, headers={"location":api.url_for(TaskItem, project=project, phase=phase, task=db_task.name)})
 
     # delete phase
-    def delete(self, project, phase):
+    def delete(self, project, phase, task):
         """
-        delete existing member
+        delete existing task
         """
-        db_phase = Phase.query.filter_by(name=phase).first()
-        if db_phase is None:
-            return create_error_response(404, "Not found", "No phase was found with the name {}".format(phase))
+        db_task = Tasks.query.filter_by(name=task).first()
+        if db_task is None:
+            return create_error_response(404, "Not found", "No phase was found with the name {}".format(task))
 
-        db.session.delete(db_phase)
+        db.session.delete(db_task)
         db.session.commit()
         
         return Response(status=204)
@@ -1199,3 +1228,6 @@ def admin_site():
     function for admin site
     """
     return app.send_static_file("html/admin.html")
+
+if __name__ == "__main__":
+    db.create_all()
