@@ -898,9 +898,7 @@ class PhaseCollection(Resource):
 
         db.session.rollback()
         if not request.json:
-            return create_error_response(415, "Unsupported media type",
-                                         "Requests must be JSON"
-                                         )
+            return create_error_response(415, "Unsupported media type", "Requests must be JSON")
         try:
             validate(request.json, PhaseBuilder.phase_schema())
         except ValidationError as e:
@@ -926,8 +924,6 @@ class PhaseCollection(Resource):
         except KeyError:
             pass
 
-        if new_phase.deadline != None:
-            new_phase.deadline = datetime.datetime.strptime(new_phase.deadline, "%Y-%m-%d")
         try:
             db.session.add(new_phase)
             db.session.commit()
@@ -948,8 +944,6 @@ class PhaseItem(Resource):
         if db_phase == None:
             return create_error_response(404, "Not found", f"Phase with name {phase} not found.")
 
-        #if db_phase.deadline is None:
-        #    db_phase.deadline = datetime.datetime.strftime(db_phase.deadline, "%Y-%m-%d")
         try:
             deadline=db_phase.deadline.strftime("%Y-%m-%d")
         except AttributeError:
@@ -960,6 +954,9 @@ class PhaseItem(Resource):
             deadline=deadline,
             status=str(db_phase.status.value)
         )
+
+        
+
         body.add_namespace("promana", LINK_RELATIONS_URL)
         body.add_control("self", api.url_for(PhaseItem, project=project, phase=phase))
         body.add_control("collection", api.url_for(PhaseCollection, project=project))
