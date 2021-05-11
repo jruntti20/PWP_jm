@@ -217,7 +217,7 @@ class PhaseBuilder(MasonBuilder):
                         title="Show a selected task in a project phase",
                         encoding="json"
                         )
-    def add_control_edit_phase(self, project, phase="WHOLE_PROJECT"):
+    def add_control_edit_phase(self, project, phase):
         self.add_control("edit",
                                 f"/api/projects/{project}/phases/{phase}/",
                                 method="PUT",
@@ -896,7 +896,7 @@ class PhaseCollection(Resource):
 
     def post(self, project):
 
-        db.session.rollback()
+        #db.session.rollback()
         if not request.json:
             return create_error_response(415, "Unsupported media type",
                                          "Requests must be JSON"
@@ -927,7 +927,7 @@ class PhaseCollection(Resource):
             pass
 
         if new_phase.deadline != None:
-            new_phase.deadline = datetime.datetime.strptime(new_phase.deadline, "%Y-%m-%d")
+            new_phase.deadline = new_phase.deadline
         try:
             db.session.add(new_phase)
             db.session.commit()
@@ -936,8 +936,8 @@ class PhaseCollection(Resource):
                 "Phase with name '{}' already exists.".format(request.json["name"])
             )
 
-        return Response(status=201, headers={"location": api.url_for(PhaseItem,
-                                                                     project=project,
+        return Response(status=201, headers={"Location": api.url_for(PhaseItem,
+                                                                     project=project.name,
                                                                      phase=new_phase.name
                                                                      )})
 
@@ -1006,13 +1006,15 @@ class PhaseItem(Resource):
         except IntegrityError:
             return create_error_response(409, "Already exists", "Phase with name '{}' already exists.".format(request.json["name"]))
 
-        return Response(status=204, headers={"location":api.url_for(PhaseItem, project=project, phase=db_phase.name)})
+        return Response(status=204, headers={"Location":api.url_for(PhaseItem, project=project, phase=db_phase.name)})
     # delete phase
     def delete(self, project, phase):
         """
         delete existing phase
         """
         db_phases = Phase.query.filter_by(name=phase)
+        if db_phases.count() == 0:
+            return create_error_response(404, "Not found", "No phase was found with the name {}".format(phase))
         db_project = Project.query.filter_by(name=project).first()
         for db_phase in db_phases:
             if db_phase.project == db_project:
