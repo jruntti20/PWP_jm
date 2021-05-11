@@ -34,22 +34,38 @@ def _populate_db():
                 status=status_type.NOT_STARTED)
     pr2 = Project(name="projekti2",
                   status=status_type.NOT_STARTED)
-    ph = Phase(name="phase1",
-               status=status_type.NOT_STARTED)
+    ph = Phase(
+        name="phase1",
+        project=pr,
+        status=status_type.NOT_STARTED,
+        deadline = datetime.datetime.strptime("2021-01-01", "%Y-%m-%d")
+        )
     ph2 = Phase(name="phase2",
-               status=status_type.NOT_STARTED)
+        project=pr,
+        status=status_type.NOT_STARTED,
+        deadline=datetime.datetime.strptime("2022-01-01", "%Y-%m-%d")
+        )
     ta = Tasks(name="task1",
                project=pr,
                phase=ph,
-              status=status_type.NOT_STARTED)
+               status=status_type.NOT_STARTED,
+               start=datetime.datetime.strptime("2021-01-01", "%Y-%m-%d"),
+               end=datetime.datetime.strptime("2022-01-01", "%Y-%m-%d")
+               )
     ta2 = Tasks(name="task2",
                 project=pr2,
                 phase=ph2,
-                status=status_type.NOT_STARTED)
+                status=status_type.NOT_STARTED,
+                start=datetime.datetime.strptime("2021-01-01", "%Y-%m-%d"),
+                end=datetime.datetime.strptime("2022-01-01", "%Y-%m-%d")
+               )
     ta3 = Tasks(name="task3",
                 project=pr,
-                phase=ph,
-                status=status_type.NOT_STARTED)
+                phase=ph2,
+                status=status_type.NOT_STARTED,
+                start=datetime.datetime.strptime("2021-01-01", "%Y-%m-%d"),
+                end=datetime.datetime.strptime("2022-01-01", "%Y-%m-%d")
+                )
     for i in range(1, 4):
         m = Members(
             name="test-member-{}".format(i)
@@ -63,7 +79,22 @@ def _populate_db():
                 name="test-project-{}".format(i),
                 status=status_type.NOT_STARTED
         )
+        phas = Phase(
+            project=pr,
+            deadline=datetime.datetime.strptime(f"2022-0{i}-01", "%Y-%m-%d"),
+            status=status_type.NOT_STARTED
+            )
+        tsk = Tasks(
+            name=f"extra-task-{i}",
+            project=pr,
+            phase=phas,
+            start=datetime.datetime.strptime(f"2021-0{i}-01", "%Y-%m-%d"),
+            end=datetime.datetime.strptime(f"2022-0{i}-01", "%Y-%m-%d"),
+            status=status_type.NOT_STARTED
+        )
         db.session.add(pr)
+        db.session.add(phas)
+        db.session.add(tsk)
 
     m=Members(
         name="test-member-4")
@@ -90,6 +121,23 @@ def _get_project_json(number=1):
     return {"name": f"extra-project-{number}",
             "status": "NOT_STARTED"
             }
+
+# get valid json for phase
+def _get_phase_json(number=1):
+    return {
+        "name": f"extra-phase-{number}",
+        "deadline": "2022-01-01",
+        "status": "NOT_STARTED"
+    }
+
+# get valid json for task
+def _get_task_json(number=1):
+    return {
+        "task_name": f"extra-task-{number}",
+        "task_start": "2022-01-01",
+        "task_end": "2022-01-01",
+        "task_status": "NOT_STARTED"
+    }
 
 # test to check the namespace
 def _check_namespace(client, response):
@@ -419,4 +467,115 @@ class TestTaskMemberItem(object):
         assert resp.status_code == 404
         # try to delete member that is not in the project
         resp = client.delete(self.INVALID_URL2)
+        assert resp.status_code == 404
+
+# test phase collection
+class TestPhaseCollection(object):
+
+    # RESOURCE_URL = "/api/projects/projekti1/phases/"
+    RESOURCE_URL = "/api/projects/projekti1/phases/"
+    # EXTRA_URL = "/api/projects/projekti1/phases/"
+
+    # test for get request
+    def test_get(self, client):
+        resp = client.get(self.RESOURCE_URL)
+        assert resp.status_code == 200
+        body = json.loads(resp.data)
+        assert len(body["items"]) == 2
+        for item in body["items"]:
+            assert "name" in item
+            assert "status" in item
+            assert "deadline" in item
+
+    # test post request
+    def test_post(self, client):
+        valid = _get_phase_json()
+
+        # test with wrong content type
+        resp = client.post(self.RESOURCE_URL, data=json.dumps(valid))
+        assert resp.status_code == 415
+
+        # test with valid and see that it exists afterward
+        resp = client.post(self.RESOURCE_URL, json=valid)
+        assert resp.status_code == 201
+        #assert resp.headers["Location"].endswith(self.RESOURCE_URL + valid["name"] + "/")
+        resp = client.get(resp.headers["Location"])
+        assert resp.status_code == 200
+        body = json.loads(resp.data)
+        assert body["name"] == "extra-phase-1"
+        assert body["deadline"] == "2022-01-01"
+        assert body["status"] == "not started"
+
+        # send with invalid schema
+        invalid = {"n": "phase1"}
+        resp = client.post(self.RESOURCE_URL, json=invalid)
+        assert resp.status_code == 400
+
+class TestPhaseItem(object):
+
+    RESOURCE_URL = "/api/projects/projekti1/phases/phase1/"
+    INVALID_URL = "/api/projects/projekti1/phases/feikki/"
+    MODIFIED_URL = "/api/projects/projekti1/phases/extra-phase-2/"
+    MODIFIED_URL2 = "/api/projects/projekti1/phases/extra-phase-1/"
+
+    # test get request
+    def test_get(self, client):
+        resp = client.get(self.RESOURCE_URL)
+        assert resp.status_code == 200
+        body = json.loads(resp.data)
+        assert body["name"] == "phase1"
+        assert body["status"] == "not started"
+        assert body["deadline"] == "2021-01-01"
+        resp = client.get(self.INVALID_URL)
+        assert resp.status_code == 404
+
+    # test put request
+    def test_put(self, client):
+        valid = _get_phase_json()
+
+        # test with wrong content type
+        resp = client.put(self.RESOURCE_URL, data=json.dumps(valid))
+        assert resp.status_code == 415
+
+        # test with invalid URL
+        resp = client.put(self.INVALID_URL, json=valid)
+        assert resp.status_code == 404
+
+        # test with another phase name
+        valid["name"] = "extra-phase-2"
+        resp = client.put(self.RESOURCE_URL, json=valid)
+        assert resp.status_code == 204
+
+        # test with valid
+        valid["name"] = "extra-phase-1"
+        resp = client.put(self.RESOURCE_URL, json=valid)
+        assert resp.status_code == 404
+
+        # send with invalid schema
+        invalid = {"n": "phase"}
+        resp = client.put(self.RESOURCE_URL, json=invalid)
+        assert resp.status_code == 400
+
+        # test if the modification modified the name
+        valid = _get_phase_json()
+        valid["name"] = "extra-phase-1"
+
+        resp = client.put(self.MODIFIED_URL, json=valid)
+        resp = client.get(self.MODIFIED_URL2, json=valid)
+
+        assert resp.status_code == 200
+        body = json.loads(resp.data)
+
+        assert body["name"] == valid["name"]
+
+    # test delete
+    def test_delete(self, client):
+        # test for valid url
+        resp = client.delete(self.RESOURCE_URL)
+        assert resp.status_code == 204
+        # test the same url again
+        resp = client.get(self.RESOURCE_URL)
+        assert resp.status_code == 404
+        # test with invalid url
+        resp = client.delete(self.INVALID_URL)
         assert resp.status_code == 404
